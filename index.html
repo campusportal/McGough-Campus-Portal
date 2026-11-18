@@ -2122,9 +2122,9 @@ body {
       pendingSubmissions: createInitialPendingSubmissions(),
       auditLog: [], // Starts empty until real user actions occur
       showHiddenEarly: false,
-      // 3-Tier Role-Based Auth (McGough GC / Applied Digital Fac Ops Client / Trade Partner)
-      authRole: 'mcgough', // 'mcgough' | 'client' | 'trade'
-      gcAuthenticated: true,
+       // 3-Tier Role-Based Auth (Starts locked until user signs in)
+      authRole: null, // 'mcgough' | 'client' | 'trade'
+      gcAuthenticated: false,
       gcPasscode: '2026',
       clientAuthenticated: false,
       clientPasscode: '2027',
@@ -2158,6 +2158,30 @@ body {
       variance: null
     };
 
+     const SESSION_AUTH_KEY = 'mcgough_portal_active_session_v1';
+
+    function isPortalLoggedIn() {
+      return Boolean(state.gcAuthenticated || state.clientAuthenticated || state.authRole === 'trade');
+    }
+
+    function saveSessionAuth() {
+      try {
+        sessionStorage.setItem(SESSION_AUTH_KEY, JSON.stringify({
+          authRole: state.authRole,
+          gcAuthenticated: state.gcAuthenticated,
+          clientAuthenticated: state.clientAuthenticated,
+          activeApproverId: state.activeApproverId,
+          activeClientApproverId: state.activeClientApproverId,
+          selectedTradeOrg: state.selectedTradeOrg,
+          portalForeman: state.portalForeman
+        }));
+      } catch (err) {}
+    }
+
+    function clearSessionAuth() {
+      try { sessionStorage.removeItem(SESSION_AUTH_KEY); } catch (err) {}
+    }
+
     function loadSavedState() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
@@ -2171,11 +2195,43 @@ body {
             }
           }
         }
-      } catch (err) {
-        // Ignore storage errors in restricted environments
+      } catch (err) {}
+
+      // Always start locked unless this browser tab has an active signed-in session
+      state.authRole = null;
+      state.gcAuthenticated = false;
+      state.clientAuthenticated = false;
+      try {
+        const rawSess = sessionStorage.getItem(SESSION_AUTH_KEY);
+        if (rawSess) {
+          const sess = JSON.parse(rawSess);
+          if (sess && sess.authRole) {
+            state.authRole = sess.authRole;
+            state.gcAuthenticated = Boolean(sess.gcAuthenticated);
+            state.clientAuthenticated = Boolean(sess.clientAuthenticated);
+            if (sess.activeApproverId) state.activeApproverId = sess.activeApproverId;
+            if (sess.activeClientApproverId) state.activeClientApproverId = sess.activeClientApproverId;
+            if (sess.selectedTradeOrg) state.selectedTradeOrg = sess.selectedTradeOrg;
+            if (sess.portalForeman != null) state.portalForeman = sess.portalForeman;
+          }
+        }
+      } catch (err) {}
+
+      if (window.MCGOUGH_PAGE_ID) {
+        state.portalMode = window.MCGOUGH_PAGE_ID;
       }
-      // Check hash routing for direct trade portal links e.g. #portal?org=Magnum
-      applyUrlHashRouting();
+      const searchStr = window.location.search || '';
+      if (searchStr.length > 1) {
+        const qParams = new URLSearchParams(searchStr.slice(1));
+        const qOrg = qParams.get('org');
+        if (qOrg && getOrgByCode(qOrg)) {
+          state.selectedTradeOrg = qOrg;
+          const oObj = getOrgByCode(qOrg);
+          if (oObj && oObj.defaultForeman) state.portalForeman = oObj.defaultForeman;
+        }
+        const qTab = qParams.get('tab');
+        if (qTab === 'form' || qTab === 'queue') state.mopSubTab = qTab;
+      }
     }
 
     function saveState() {
@@ -2912,8 +2968,9 @@ body {
       }
     }
 
-    // 3-Role Login & Access Control Modal (McGough GC | Applied Digital Fac Ops | Trade Partner)
+    // 3-Role Login & Access Control Modal (Blank PINs & Mandatory Gate on Entry)
     function openAuthLoginModal(targetMode) {
+      const lockedGate = !isPortalLoggedIn();
       const appOpts = state.approvers.map(function(a) {
         return '<option value="' + escapeHtml(a.id) + '"' + (a.id === state.activeApproverId ? ' selected' : '') + '>' + escapeHtml(a.name) + ' (' + escapeHtml(a.role) + ')</option>';
       }).join('');
@@ -2923,15 +2980,15 @@ body {
       }).join('');
 
       const tradeOpts = state.organizations.filter(function(o) { return !o.isGC; }).map(function(o) {
-        return '<option value="' + escapeHtml(o.code) + '"' + (o.code === state.selectedTradeOrg ? ' selected' : '') + '>' + escapeHtml(o.code) + ' (Code: ' + getContractorAccessCode(o.code) + ')</option>';
+        return '<option value="' + escapeHtml(o.code) + '"' + (o.code === state.selectedTradeOrg ? ' selected' : '') + '>' + escapeHtml(o.code) + '</option>';
       }).join('');
 
       openModal(
         '<div class="p-5 bg-slate-50">' +
           '<div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-200">' +
             '<div>' +
-              '<h3 class="text-base font-bold text-slate-900">Role Sign-In &amp; Approval Authority</h3>' +
-              '<p class="text-xs text-slate-600">Switch between McGough GC Approver, Applied Digital Fac Ops Client Approver, and Trade Partner access.</p>' +
+              '<h3 class="text-base font-bold text-slate-900">McGough Ellendale Portal — Sign In Required</h3>' +
+              '<p class="text-xs text-slate-600">Select your organization role and enter your authorized PIN or Contractor Access Code to continue.</p>' +
             '</div>' +
           '</div>' +
 
@@ -2943,73 +3000,97 @@ body {
                 '<p class="text-slate-500 mb-2.5">Edits Official WWP, approves Trade WWP updates, and signs off Gate 1 on MOPs.</p>' +
                 '<label class="block font-semibold text-slate-700 mb-1">McGough Approver</label>' +
                 '<select id="auth-gc-approver" class="w-full px-2 py-1.5 rounded-lg border border-slate-300 bg-white mb-2">' + appOpts + '</select>' +
-                '<label class="block font-semibold text-slate-700 mb-1">McGough PIN (Demo: ' + escapeHtml(state.gcPasscode) + ')</label>' +
-                '<input id="auth-gc-pin" type="password" value="' + escapeHtml(state.gcPasscode) + '" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300" />' +
+                '<label class="block font-semibold text-slate-700 mb-1">McGough PIN</label>' +
+                '<input id="auth-gc-pin" type="password" value="" autocomplete="off" placeholder="Enter McGough PIN" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300" />' +
               '</div>' +
-              '<button type="button" onclick="signInAsMcGough()" class="w-full py-2 px-3 rounded-lg bg-red-700 hover:bg-red-600 text-white font-bold transition">Unlock McGough GC View</button>' +
+              '<button type="button" onclick="signInAsMcGough()" class="w-full py-2 px-3 rounded-lg bg-red-700 hover:bg-red-600 text-white font-bold transition">Sign In as McGough</button>' +
             '</div>' +
 
-            // Card 2: Applied Digital Fac Ops (Client Approver)
+            // Card 2: Applied Digital Fac Ops
             '<div class="p-3.5 rounded-xl bg-white border-2 ' + (state.clientAuthenticated && state.authRole === 'client' ? 'border-indigo-600' : 'border-slate-200') + ' shadow-sm flex flex-col justify-between gap-3">' +
               '<div>' +
                 '<div class="text-[11px] font-bold uppercase tracking-wider text-indigo-800 mb-1">2. Applied Digital Fac Ops</div>' +
                 '<p class="text-slate-500 mb-2.5">Client Facilities Ops sign-off authority for Gate 2 MOP approvals.</p>' +
                 '<label class="block font-semibold text-slate-700 mb-1">Client Representative</label>' +
                 '<select id="auth-client-approver" class="w-full px-2 py-1.5 rounded-lg border border-slate-300 bg-white mb-2">' + clientOpts + '</select>' +
-                '<label class="block font-semibold text-slate-700 mb-1">Client PIN (Demo: ' + escapeHtml(state.clientPasscode) + ')</label>' +
-                '<input id="auth-client-pin" type="password" value="' + escapeHtml(state.clientPasscode) + '" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300" />' +
+                '<label class="block font-semibold text-slate-700 mb-1">Applied Digital PIN</label>' +
+                '<input id="auth-client-pin" type="password" value="" autocomplete="off" placeholder="Enter Client PIN" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300" />' +
               '</div>' +
-              '<button type="button" onclick="signInAsClientFacOps()" class="w-full py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition">Sign In: Applied Digital Fac Ops</button>' +
+              '<button type="button" onclick="signInAsClientFacOps()" class="w-full py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition">Sign In: Applied Digital</button>' +
             '</div>' +
 
             // Card 3: Trade Partner
-            '<div class="p-3.5 rounded-xl bg-white border-2 ' + (state.authRole === 'trade' && !state.gcAuthenticated ? 'border-sky-600' : 'border-slate-200') + ' shadow-sm flex flex-col justify-between gap-3">' +
+            '<div class="p-3.5 rounded-xl bg-white border-2 ' + (state.authRole === 'trade' ? 'border-sky-600' : 'border-slate-200') + ' shadow-sm flex flex-col justify-between gap-3">' +
               '<div>' +
                 '<div class="text-[11px] font-bold uppercase tracking-wider text-sky-800 mb-1">3. Trade Partner Foreman</div>' +
                 '<p class="text-slate-500 mb-2.5">Submits WWP updates and MOP Drafts. Locked out of WWP &amp; MOP approvals.</p>' +
                 '<label class="block font-semibold text-slate-700 mb-1">Contractor Organization</label>' +
-                '<select id="auth-trade-org" onchange="syncTradeCodeHint(this.value)" class="w-full px-2 py-1.5 rounded-lg border border-slate-300 bg-white mb-2">' + tradeOpts + '</select>' +
+                '<select id="auth-trade-org" class="w-full px-2 py-1.5 rounded-lg border border-slate-300 bg-white mb-2">' + tradeOpts + '</select>' +
                 '<label class="block font-semibold text-slate-700 mb-1">Trade Access Code</label>' +
-                '<input id="auth-trade-code" type="text" value="' + escapeHtml(getContractorAccessCode(state.selectedTradeOrg)) + '" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 font-mono uppercase" />' +
+                '<input id="auth-trade-code" type="password" value="" autocomplete="off" placeholder="Enter Contractor Code" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 font-mono uppercase" />' +
               '</div>' +
-              '<button type="button" onclick="signInAsTradePartner()" class="w-full py-2 px-3 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold transition">Enter Scoped Trade Portal (Locked)</button>' +
+              '<button type="button" onclick="signInAsTradePartner()" class="w-full py-2 px-3 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold transition">Sign In as Trade Partner</button>' +
             '</div>' +
           '</div>' +
 
-          '<div class="mt-4 pt-3 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">' +
-            (state.gcAuthenticated || state.clientAuthenticated
-              ? '<button type="button" onclick="lockMcGoughSession()" class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-semibold">Lock Session to Trade-Only Mode</button>'
-              : '<span class="text-slate-500">Approver PINs are customizable under Approvers.</span>') +
-            '<button type="button" onclick="closeModal()" class="px-4 py-1.5 rounded-lg bg-slate-900 text-white font-semibold">Close</button>' +
-          '</div>' +
+          (lockedGate
+            ? '<div class="mt-4 pt-3 border-t border-slate-200 text-center text-xs text-slate-500">Authorized credentials are required to access the Ellendale WWP &amp; MOP portal.</div>'
+            : '<div class="mt-4 pt-3 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">' +
+                '<button type="button" onclick="lockMcGoughSession()" class="px-3 py-1.5 rounded-lg border border-rose-300 bg-white hover:bg-rose-50 text-rose-700 font-semibold">Sign Out / Lock Portal</button>' +
+                '<button type="button" onclick="closeModal()" class="px-4 py-1.5 rounded-lg bg-slate-900 text-white font-semibold">Close</button>' +
+              '</div>') +
         '</div>'
       );
     }
 
-    function syncTradeCodeHint(orgCode) {
-      const inp = document.getElementById('auth-trade-code');
-      if (inp) inp.value = getContractorAccessCode(orgCode);
+    function syncTradeCodeHint() {}
+
+    function unlockPortalChrome() {
+      document.body.classList.remove('overflow-hidden');
+      const backdrop = document.getElementById('modal-backdrop');
+      if (backdrop) backdrop.style.backgroundColor = '';
+      const hdr = document.querySelector('header');
+      if (hdr) hdr.style.visibility = '';
+      ['gc-workspace', 'trade-portal-workspace', 'mop-workspace'].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.style.visibility = '';
+      });
+    }
+
+    function lockPortalChrome() {
+      document.body.classList.add('overflow-hidden');
+      const backdrop = document.getElementById('modal-backdrop');
+      if (backdrop) backdrop.style.backgroundColor = '#0f172a';
+      const hdr = document.querySelector('header');
+      if (hdr) hdr.style.visibility = 'hidden';
+      ['gc-workspace', 'trade-portal-workspace', 'mop-workspace'].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.style.visibility = 'hidden';
+      });
     }
 
     function signInAsMcGough() {
       const pin = (document.getElementById('auth-gc-pin').value || '').trim();
       if (pin !== state.gcPasscode) {
-        showToast('Incorrect McGough PIN (default demo PIN is ' + state.gcPasscode + ').', 'error');
+        showToast('Incorrect McGough PIN.', 'error');
         return;
       }
       state.activeApproverId = document.getElementById('auth-gc-approver').value;
       state.authRole = 'mcgough';
       state.gcAuthenticated = true;
-      closeModal();
+      state.clientAuthenticated = false;
+      saveSessionAuth();
       saveState();
+      unlockPortalChrome();
+      closeModal();
       renderAll();
-      showToast('Signed in as ' + getActiveApprover().name + ' (McGough Approver).', 'success');
+      showToast('Signed in as ' + getActiveApprover().name + ' (McGough).', 'success');
     }
 
     function signInAsClientFacOps() {
       const pin = (document.getElementById('auth-client-pin').value || '').trim();
       if (pin !== state.clientPasscode) {
-        showToast('Incorrect Client PIN (default demo PIN is ' + state.clientPasscode + ').', 'error');
+        showToast('Incorrect Applied Digital PIN.', 'error');
         return;
       }
       state.activeClientApproverId = document.getElementById('auth-client-approver').value;
@@ -3017,24 +3098,23 @@ body {
       state.clientAuthenticated = true;
       state.gcAuthenticated = false;
       state.mopSubTab = 'queue';
-      closeModal();
+      saveSessionAuth();
       saveState();
+      unlockPortalChrome();
+      closeModal();
       switchPortalMode('mop');
       showToast('Signed in as ' + getActiveClientApprover().name + ' (Applied Digital Fac Ops).', 'success');
     }
 
     function lockMcGoughSession() {
-      state.authRole = 'trade';
+      state.authRole = null;
       state.gcAuthenticated = false;
       state.clientAuthenticated = false;
-      closeModal();
+      clearSessionAuth();
       saveState();
-      if (state.portalMode === 'gc') {
-        switchPortalMode('trade');
-      } else {
-        renderAll();
-      }
-      showToast('Approver session locked ? switched to Trade Partner view.', 'info');
+      lockPortalChrome();
+      openAuthLoginModal();
+      showToast('Signed out — portal locked.', 'info');
     }
 
     function signInAsTradePartner() {
@@ -3042,7 +3122,7 @@ body {
       const entered = (document.getElementById('auth-trade-code').value || '').trim().toUpperCase();
       const expected = getContractorAccessCode(orgCode);
       if (entered !== expected) {
-        showToast('Invalid access code for ' + orgCode + ' (expected ' + expected + ').', 'error');
+        showToast('Invalid Trade Access Code.', 'error');
         return;
       }
       state.selectedTradeOrg = orgCode;
@@ -3050,18 +3130,25 @@ body {
       state.authRole = 'trade';
       state.gcAuthenticated = false;
       state.clientAuthenticated = false;
-      closeModal();
+      saveSessionAuth();
       saveState();
-      if (state.portalMode === 'gc') {
+      unlockPortalChrome();
+      closeModal();
+      if (state.portalMode === 'gc' || (window.MCGOUGH_MULTIPAGE && window.MCGOUGH_PAGE_ID === 'gc')) {
         switchPortalMode('trade');
       } else {
         renderAll();
       }
-      showToast('Signed in as ' + orgCode + ' Trade Partner (Approvals locked).', 'info');
+      showToast('Signed in as ' + orgCode + ' Trade Partner.', 'info');
     }
 
-    // Manage Both McGough Approvers AND Applied Digital Fac Ops Representatives
+    // Manage Both McGough Approvers AND Applied Digital Fac Ops Representatives (McGough Only)
     function openApproversModal() {
+      if (!state.gcAuthenticated || state.authRole !== 'mcgough') {
+        showToast('McGough sign-in required to manage approvers and PINs.', 'error');
+        openAuthLoginModal('gc');
+        return;
+      }
       const mcRows = state.approvers.map(function(a) {
         return '<div class="p-2.5 rounded-lg border border-slate-200 flex items-center justify-between gap-2 text-xs bg-white">' +
           '<div>' +
@@ -3377,9 +3464,31 @@ body {
     }
 
 
-    // Boot application across standalone pages or single-file Canvas bundle
+    // Prevent closing the login screen by clicking outside before signing in
+    function handleBackdropClick(e) {
+      if (!isPortalLoggedIn()) return;
+      if (e.target && e.target.id === 'modal-backdrop') {
+        closeModal();
+      }
+    }
+
+    // Restrict Share Links (which show contractor codes) to McGough only
+    const _origOpenShareLinkModal = openShareLinkModal;
+    openShareLinkModal = function() {
+      if (!state.gcAuthenticated || state.authRole !== 'mcgough') {
+        showToast('McGough sign-in required to view and send Trade Access Links.', 'error');
+        openAuthLoginModal('gc');
+        return;
+      }
+      _origOpenShareLinkModal();
+    };
+
     window.addEventListener('hashchange', function() {
-      applyUrlHashRouting();
+      if (!isPortalLoggedIn()) {
+        lockPortalChrome();
+        openAuthLoginModal();
+        return;
+      }
       renderAll();
     });
 
@@ -3389,6 +3498,12 @@ body {
         initMopFormDefaults();
       }
       renderAll();
+      if (!isPortalLoggedIn()) {
+        lockPortalChrome();
+        openAuthLoginModal();
+      } else if (window.MCGOUGH_MULTIPAGE && window.MCGOUGH_PAGE_ID === 'gc' && !state.gcAuthenticated) {
+        switchPortalMode(state.authRole === 'client' ? 'mop' : 'trade');
+      }
     });
 
     // =========================================================================
@@ -3700,6 +3815,11 @@ body {
           html += '<div class="flex items-center justify-between gap-2 mt-1">';
           html += '<span class="text-[10px] font-medium text-slate-600">' + formatShortDate(task.startDate) + ' &rarr; ' + formatShortDate(task.endDate) + (task.crew ? ' &bull; Crew ' + task.crew : '') + '</span>';
           html += '<div class="inline-flex items-center gap-0.5 opacity-80 group-hover:opacity-100" onclick="event.stopPropagation()">';
+            if (hasTaskUndo(task.id)) {
+            html += '<button type="button" onclick="undoTaskChange(\'' + task.id + '\')" class="px-1.5 py-0.2 rounded bg-amber-200 hover:bg-amber-300 text-amber-950 text-[10px] font-bold" title="Undo last change on this task">&#8634; Undo</button>';
+          }
+          html += '<button type="button" onclick="nudgeTaskDates(\'' + task.id + '\', -1, -1)" class="px-1.5 py-0.2 rounded bg-slate-200/90 hover:bg-slate-800 hover:text-white text-[10px] font-bold text-slate-700" title="Slide entire task 1 day earlier">-1d</button>';
+
           html += '<button type="button" onclick="nudgeTaskDates(\'' + task.id + '\', -1, -1)" class="px-1.5 py-0.2 rounded bg-slate-200/90 hover:bg-slate-800 hover:text-white text-[10px] font-bold text-slate-700" title="Slide entire task 1 day earlier">-1d</button>';
           html += '<button type="button" onclick="nudgeTaskDates(\'' + task.id + '\', 1, 1)" class="px-1.5 py-0.2 rounded bg-slate-200/90 hover:bg-slate-800 hover:text-white text-[10px] font-bold text-slate-700" title="Slide entire task 1 day later">+1d</button>';
           html += '<button type="button" onclick="nudgeTaskDates(\'' + task.id + '\', 0, 1)" class="px-1.5 py-0.2 rounded bg-slate-200/90 hover:bg-sky-700 hover:text-white text-[10px] font-semibold text-slate-700" title="Extend duration +1 day">+Dur</button>';
@@ -3854,26 +3974,128 @@ body {
       return next;
     }
 
+    // Per-Task Undo History & Bar Modification Verification Pop-Up
+    let taskUndoHistory = {};
+    let skipBarVerifyPrompt = false;
+    let pendingBarChange = null;
+
+    function snapshotTaskState(task) {
+      return {
+        startDate: task.startDate,
+        endDate: task.endDate,
+        percentComplete: task.percentComplete,
+        completedAsPlanned: task.completedAsPlanned,
+        varianceCategory: task.varianceCategory,
+        hiddenEarly: Boolean(task.hiddenEarly),
+        dailyPlan: JSON.parse(JSON.stringify(task.dailyPlan || {}))
+      };
+    }
+
+    function restoreTaskSnapshot(task, snap) {
+      task.startDate = snap.startDate;
+      task.endDate = snap.endDate;
+      task.percentComplete = snap.percentComplete;
+      task.completedAsPlanned = snap.completedAsPlanned;
+      task.varianceCategory = snap.varianceCategory;
+      task.hiddenEarly = snap.hiddenEarly;
+      task.dailyPlan = JSON.parse(JSON.stringify(snap.dailyPlan || {}));
+    }
+
+    function pushTaskUndo(taskId, snap) {
+      if (!taskUndoHistory[taskId]) taskUndoHistory[taskId] = [];
+      taskUndoHistory[taskId].push(snap);
+      if (taskUndoHistory[taskId].length > 15) taskUndoHistory[taskId].shift();
+    }
+
+    function hasTaskUndo(taskId) {
+      return Boolean(taskUndoHistory[taskId] && taskUndoHistory[taskId].length > 0);
+    }
+
+    function undoTaskChange(taskId) {
+      const task = getTaskById(taskId);
+      if (!task || !hasTaskUndo(taskId)) return;
+      const prevSnap = taskUndoHistory[taskId].pop();
+      restoreTaskSnapshot(task, prevSnap);
+      saveState();
+      renderAll();
+      showToast('Undid change on ' + task.org + ' (' + formatShortDate(task.startDate) + ' → ' + formatShortDate(task.endDate) + ').', 'info');
+    }
+
+    function requestBarChangeVerification(taskId, beforeSnap, afterSnap, changeDetail) {
+      const task = getTaskById(taskId);
+      if (!task) return;
+      if (skipBarVerifyPrompt) {
+        pushTaskUndo(taskId, beforeSnap);
+        restoreTaskSnapshot(task, afterSnap);
+        saveState();
+        renderAll();
+        showToast('Updated ' + task.org + ': ' + formatShortDate(afterSnap.startDate) + ' → ' + formatShortDate(afterSnap.endDate), 'info');
+        return;
+      }
+      pendingBarChange = { taskId: taskId, beforeSnap: beforeSnap, afterSnap: afterSnap };
+      openModal(
+        '<div class="p-4">' +
+          '<h3 class="text-sm font-bold text-slate-900">Confirm WWP Bar Change?</h3>' +
+          '<p class="text-xs text-slate-600 mt-1"><strong>' + escapeHtml(task.org) + '</strong> — ' + escapeHtml(task.description) + '</p>' +
+          '<div class="mt-3 p-2.5 rounded-lg bg-slate-100 border border-slate-300 text-xs flex items-center justify-between gap-2">' +
+            '<span>Current: <strong>' + formatShortDate(beforeSnap.startDate) + ' – ' + formatShortDate(beforeSnap.endDate) + '</strong></span>' +
+            '<span>&rarr;</span>' +
+            '<span>New: <strong class="text-emerald-800">' + escapeHtml(changeDetail) + '</strong></span>' +
+          '</div>' +
+          '<label class="mt-3 inline-flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none">' +
+            '<input type="checkbox" id="skip-bar-verify-chk" />' +
+            '<span>Skip pop-up for the rest of this meeting (Undo button stays active)</span>' +
+          '</label>' +
+          '<div class="mt-4 flex justify-end gap-2">' +
+            '<button type="button" onclick="cancelBarChange()" class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-xs font-semibold text-slate-700">Cancel</button>' +
+            '<button type="button" onclick="confirmBarChange()" class="px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold">Confirm Change</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    function confirmBarChange() {
+      if (!pendingBarChange) return;
+      const chk = document.getElementById('skip-bar-verify-chk');
+      if (chk && chk.checked) skipBarVerifyPrompt = true;
+      const task = getTaskById(pendingBarChange.taskId);
+      if (task) {
+        pushTaskUndo(task.id, pendingBarChange.beforeSnap);
+        restoreTaskSnapshot(task, pendingBarChange.afterSnap);
+        saveState();
+        renderAll();
+        showToast('Updated ' + task.org + ' (' + formatShortDate(task.startDate) + ' → ' + formatShortDate(task.endDate) + ').', 'success');
+      }
+      pendingBarChange = null;
+      closeModal();
+    }
+
+    function cancelBarChange() {
+      pendingBarChange = null;
+      closeModal();
+      renderLookaheadView();
+    }
+
     function nudgeTaskDates(taskId, startDelta, endDelta) {
       const task = getTaskById(taskId);
       if (!task) return;
       const nextStart = addDaysIso(task.startDate, startDelta);
       const nextEnd = addDaysIso(task.endDate, endDelta);
       if (nextEnd < nextStart) return;
-      if (startDelta === endDelta && startDelta !== 0) {
-        task.dailyPlan = shiftDailyPlanMap(task.dailyPlan, startDelta);
-      } else {
-        task.dailyPlan = buildPlanRange(nextStart, nextEnd, { markComplete: task.percentComplete >= 100 });
-      }
-      task.startDate = nextStart;
-      task.endDate = nextEnd;
-      saveState();
-      renderLookaheadView();
+      const beforeSnap = snapshotTaskState(task);
+      const afterSnap = snapshotTaskState(task);
+      afterSnap.startDate = nextStart;
+      afterSnap.endDate = nextEnd;
+      afterSnap.dailyPlan = (startDelta === endDelta && startDelta !== 0)
+        ? shiftDailyPlanMap(task.dailyPlan, startDelta)
+        : buildPlanRange(nextStart, nextEnd, { markComplete: task.percentComplete >= 100 });
+      requestBarChangeVerification(taskId, beforeSnap, afterSnap, formatShortDate(nextStart) + ' – ' + formatShortDate(nextEnd));
     }
 
     function quickStepPercent(taskId) {
       const task = getTaskById(taskId);
       if (!task) return;
+      pushTaskUndo(taskId, snapshotTaskState(task));
       const steps = [0, 25, 50, 75, 100];
       let nextVal = 100;
       for (let i = 0; i < steps.length; i++) {
@@ -3904,6 +4126,7 @@ body {
       ganttDrag.mode = mode;
       ganttDrag.taskId = taskId;
       ganttDrag.anchorIso = isoDate;
+      ganttDrag.origSnap = snapshotTaskState(task);
       ganttDrag.origStart = task.startDate;
       ganttDrag.origEnd = task.endDate;
       ganttDrag.origDailyPlan = JSON.parse(JSON.stringify(task.dailyPlan || {}));
@@ -3920,6 +4143,7 @@ body {
       ganttDrag.mode = inSpan ? 'move' : 'paint';
       ganttDrag.taskId = taskId;
       ganttDrag.anchorIso = isoDate;
+      ganttDrag.origSnap = snapshotTaskState(task);
       ganttDrag.origStart = task.startDate;
       ganttDrag.origEnd = task.endDate;
       ganttDrag.origDailyPlan = JSON.parse(JSON.stringify(task.dailyPlan || {}));
@@ -3970,42 +4194,43 @@ body {
       if (!ganttDrag.active) return;
       const wasMoved = ganttDrag.moved;
       const draggedTask = getTaskById(ganttDrag.taskId);
+      const beforeSnap = ganttDrag.origSnap;
       ganttDrag.active = false;
       ganttDrag.moved = false;
       document.body.classList.remove('gantt-dragging-active');
-      if (wasMoved && draggedTask) {
+      if (wasMoved && draggedTask && beforeSnap) {
         ganttDrag.suppressNextClick = true;
-        saveState();
+        const afterSnap = snapshotTaskState(draggedTask);
+        restoreTaskSnapshot(draggedTask, beforeSnap);
         renderLookaheadView();
-        showToast('Updated ' + draggedTask.org + ' schedule: ' + formatShortDate(draggedTask.startDate) + ' ? ' + formatShortDate(draggedTask.endDate), 'info');
+        requestBarChangeVerification(draggedTask.id, beforeSnap, afterSnap, formatShortDate(afterSnap.startDate) + ' – ' + formatShortDate(afterSnap.endDate));
       }
     });
 
-    // Direct interactive cell click in GC Official View
     function cycleDailyCellCode(taskId, isoDate) {
       const task = getTaskById(taskId);
       if (!task) return;
-      if (!task.dailyPlan) task.dailyPlan = {};
-      const cur = task.dailyPlan[isoDate] || '';
+      const beforeSnap = snapshotTaskState(task);
+      const afterSnap = snapshotTaskState(task);
+      const cur = afterSnap.dailyPlan[isoDate] || '';
       const order = ['', 'S', 'x', 'C'];
-      const nextIdx = (order.indexOf(cur) + 1) % order.length;
-      const nextCode = order[nextIdx];
+      const nextCode = order[(order.indexOf(cur) + 1) % order.length];
       if (nextCode === '') {
-        delete task.dailyPlan[isoDate];
+        delete afterSnap.dailyPlan[isoDate];
       } else {
-        task.dailyPlan[isoDate] = nextCode;
-        // Expand task startDate / endDate automatically if clicked outside current span
-        if (isoDate < task.startDate) task.startDate = isoDate;
-        if (isoDate > task.endDate) task.endDate = isoDate;
-        if (nextCode === 'C') task.percentComplete = 100;
+        afterSnap.dailyPlan[isoDate] = nextCode;
+        if (isoDate < afterSnap.startDate) afterSnap.startDate = isoDate;
+        if (isoDate > afterSnap.endDate) afterSnap.endDate = isoDate;
+        if (nextCode === 'C') afterSnap.percentComplete = 100;
       }
-      saveState();
-      renderLookaheadView();
+      const label = formatShortDate(isoDate) + ' → ' + (nextCode || 'Cleared') + ' (' + formatShortDate(afterSnap.startDate) + '–' + formatShortDate(afterSnap.endDate) + ')';
+      requestBarChangeVerification(taskId, beforeSnap, afterSnap, label);
     }
 
     function quickTogglePpc(taskId) {
       const task = getTaskById(taskId);
       if (!task) return;
+      pushTaskUndo(taskId, snapshotTaskState(task));
       if (task.completedAsPlanned === null) {
         task.completedAsPlanned = 'YES';
         task.varianceCategory = '';
@@ -5372,9 +5597,9 @@ body {
       const m = (state.mops || []).find(function(x) { return x.mopId === mopId; });
       if (!m) return;
 
-      if (gate === 'mcgough') {
-        if (!state.gcAuthenticated) {
-          showToast('Please unlock McGough Staff Sign-In (PIN: ' + state.gcPasscode + ') to sign off as McGough.', 'error');
+       if (gate === 'mcgough') {
+        if (!state.gcAuthenticated || state.authRole !== 'mcgough') {
+          showToast('McGough sign-in required to approve Gate 1.', 'error');
           openAuthLoginModal('gc');
           return;
         }
@@ -5389,7 +5614,7 @@ body {
         };
       } else if (gate === 'client') {
         if (!state.clientAuthenticated && !state.gcAuthenticated) {
-          showToast('Sign in as Applied Digital Fac Ops (PIN: ' + state.clientPasscode + ') to sign off Client approval.', 'error');
+          showToast('Applied Digital Fac Ops sign-in required to approve Gate 2.', 'error');
           openAuthLoginModal('client');
           return;
         }
