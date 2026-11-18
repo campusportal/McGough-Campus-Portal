@@ -1,0 +1,3299 @@
+html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>McGough WWP — Weekly Work Plan &amp; Lookahead Collaboration</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --mcgough-red: #991b1b;
+      --mcgough-accent: #b91c1c;
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+      overflow-x: hidden;
+    }
+    /* Custom thin scrollbars for dense lookahead schedule grid */
+    .schedule-scroll::-webkit-scrollbar {
+      height: 10px;
+      width: 10px;
+    }
+    .schedule-scroll::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 6px;
+    }
+    .schedule-scroll::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 6px;
+      border: 2px solid #f1f5f9;
+    }
+    .schedule-scroll::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    .sticky-col-left {
+      position: sticky;
+      left: 0;
+      z-index: 20;
+    }
+    .sticky-header-top {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+    }
+    .gantt-cell {
+      min-width: 44px;
+      width: 44px;
+      height: 38px;
+      transition: background-color 0.12s ease;
+    }
+    .gantt-cell:hover {
+      background-color: rgba(59, 130, 246, 0.08);
+    }
+    @media print {
+      .no-print {
+        display: none !important;
+      }
+      body {
+        background: #ffffff;
+      }
+      .schedule-scroll {
+        overflow: visible !important;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-red-100 selection:text-red-900">
+
+  <!-- Top Global Navigation Bar -->
+  <header class="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-40 shadow-sm no-print">
+    <div class="max-w-[1600px] mx-auto px-3 sm:px-5 py-2.5 flex flex-wrap items-center justify-between gap-2.5">
+      <!-- Brand & Project Context -->
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-red-700 flex items-center justify-center font-bold text-lg tracking-tight shadow-inner border border-red-500/40 shrink-0">
+          M
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 class="font-bold text-sm sm:text-base tracking-tight text-white">McGough WWP</h1>
+            <span class="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700" id="planning-week-label">Planning Week 11</span>
+          </div>
+          <p class="text-xs text-slate-400 hidden sm:block">Data Center Lookahead &amp; Trade Partner Commitment Platform</p>
+        </div>
+      </div>
+
+      <!-- Center Mode Switcher: McGough GC Workspace vs Trade Partner External Portal -->
+      <div class="flex items-center bg-slate-800/90 p-1 rounded-lg border border-slate-700">
+        <button type="button" id="mode-btn-gc" onclick="switchPortalMode('gc')" class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 bg-white text-slate-900 shadow-sm">
+          <svg class="w-3.5 h-3.5 text-red-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          <span>McGough GC View</span>
+          <span id="pending-badge-top" class="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500 text-slate-950">4</span>
+        </button>
+        <button type="button" id="mode-btn-trade" onclick="switchPortalMode('trade')" class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 text-slate-300 hover:text-white">
+          <svg class="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          <span>Trade Partner Portal</span>
+        </button>
+      </div>
+
+      <!-- Right Global Actions -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <button type="button" onclick="openShareLinkModal()" class="px-3 py-1.5 rounded-lg bg-red-700 hover:bg-red-600 text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-sm border border-red-500/30">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+          <span>Send Trade Link</span>
+        </button>
+        <button type="button" onclick="openApproversModal()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition flex items-center gap-1.5 border border-slate-700" title="Manage Specified McGough Approvers">
+          <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <span id="active-approver-pill" class="max-w-[140px] truncate">Approvers (4)</span>
+        </button>
+        <button type="button" onclick="openExportDataModal()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition flex items-center gap-1.5 border border-slate-700">
+          <svg class="w-3.5 h-3.5 text-slate-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          <span class="hidden md:inline">Export / Import</span>
+        </button>
+        <input type="file" id="json-import-input" accept=".json" class="hidden" onchange="handleJsonFileImport(event)" />
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================================================================== -->
+  <!-- WORKSPACE A: MCGOUGH GC OFFICIAL WORKSPACE                            -->
+  <!-- ===================================================================== -->
+  <main id="gc-workspace" class="flex-1 max-w-[1600px] w-full mx-auto px-3 sm:px-5 py-4 flex flex-col gap-4">
+
+    <!-- Sub-Navigation Tabs + Priority Rule Banner -->
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm no-print">
+      <nav class="flex items-center gap-1 flex-wrap" aria-label="McGough Workspace Views">
+        <button type="button" id="gc-tab-lookahead" onclick="switchGcTab('lookahead')" class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-slate-900 text-white">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          <span>Official Lookahead &amp; WWP</span>
+        </button>
+        <button type="button" id="gc-tab-approvals" onclick="switchGcTab('approvals')" class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-slate-600 hover:bg-slate-100">
+          <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+          <span>Trade Approval Queue</span>
+          <span id="pending-badge-tab" class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">4</span>
+        </button>
+        <button type="button" id="gc-tab-roadblocks" onclick="switchGcTab('roadblocks')" class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-slate-600 hover:bg-slate-100">
+          <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          <span>Roadblocks &amp; Prerequisites</span>
+          <span id="roadblock-badge-tab" class="px-1.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">8</span>
+        </button>
+        <button type="button" id="gc-tab-analytics" onclick="switchGcTab('analytics')" class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-slate-600 hover:bg-slate-100">
+          <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          <span>PPC Analytics &amp; Contractors</span>
+        </button>
+      </nav>
+
+      <!-- Priority Right-of-Way Policy Notice -->
+      <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50/90 border border-amber-200/80 text-amber-950 text-xs">
+        <svg class="w-4 h-4 text-amber-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span><strong>Area Right-of-Way:</strong> Approved tasks on this Official WWP take priority over unplanned work in the same location.</span>
+      </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- TAB 1: OFFICIAL LOOKAHEAD & WWP                                     -->
+    <!-- =================================================================== -->
+    <section id="view-lookahead" class="flex flex-col gap-3.5">
+      <!-- KPI Summary Strip -->
+      <div id="lookahead-kpi-strip" class="grid grid-cols-2 md:grid-cols-5 gap-2.5 no-print"></div>
+
+      <!-- Toolbar: Rolling Date Controls (Auto-Anchored!) + Filters + Add Task -->
+      <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3 no-print">
+        <div class="flex flex-wrap items-center justify-between gap-2.5">
+          <!-- Rolling Calendar Window Nav -->
+          <div class="flex flex-wrap items-center gap-1.5">
+            <div class="inline-flex items-center rounded-lg border border-slate-300 bg-slate-50 p-0.5">
+              <button type="button" onclick="shiftLookaheadDays(-7)" class="px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-white rounded-md transition" title="Roll window back 1 week">&larr; Prev Wk</button>
+              <button type="button" onclick="resetLookaheadToday()" class="px-2.5 py-1 text-xs font-semibold text-red-700 hover:bg-white rounded-md transition border-x border-slate-200/80">11/18 (Wk 11)</button>
+              <button type="button" onclick="shiftLookaheadDays(7)" class="px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-white rounded-md transition" title="Advance 1 week — tasks stay locked to real calendar dates!">Next Wk &rarr;</button>
+            </div>
+
+            <div class="flex items-center gap-1.5 text-xs text-slate-600 ml-1">
+              <label for="lookahead-start-input" class="font-medium hidden sm:inline">Window Start:</label>
+              <input type="date" id="lookahead-start-input" value="2026-11-18" onchange="setLookaheadStartDate(this.value)" class="px-2 py-1 rounded-lg border border-slate-300 text-xs font-medium text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-red-600/20 focus:border-red-600" />
+            </div>
+
+            <select id="horizon-select" onchange="setHorizonWeeks(this.value)" aria-label="Lookahead Horizon" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 bg-white">
+              <option value="7">1-Week WWP (7 Days)</option>
+              <option value="16" selected>3-Week Sheet Horizon (16 Days: 11/18–12/03)</option>
+              <option value="21">Full 3-Week Lookahead (21 Days)</option>
+              <option value="28">4-Week Lookahead (28 Days)</option>
+            </select>
+
+            <select id="display-mode-select" onchange="setDisplayMode(this.value)" aria-label="Timeline Cell Mode" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs font-medium text-slate-700 bg-white">
+              <option value="hybrid" selected>Outbuild Bars + Huddle Codes (S / x / C)</option>
+              <option value="bars">Clean Gantt Bars Only</option>
+              <option value="codes">Field Huddle Markup Grid (S / x / C / %)</option>
+            </select>
+          </div>
+
+          <!-- Primary Add Official Task & Print -->
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="expandCollapseAllAreas()" class="px-2.5 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-xs font-medium text-slate-700 transition">
+              Expand / Collapse Areas
+            </button>
+            <button type="button" onclick="openTaskModal(null)" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+              <span>Add Official Task</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Row -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-2 border-t border-slate-100">
+          <div class="relative">
+            <input type="text" id="filter-search" oninput="applyLookaheadFilters()" placeholder="Search scope, foreman, WBS, prerequisite..." class="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-500" />
+            <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          </div>
+          <select id="filter-area" onchange="applyLookaheadFilters()" aria-label="Filter by Area" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-700 bg-white">
+            <option value="ALL">All Project Areas (Admin + Data Halls 1–6)</option>
+          </select>
+          <select id="filter-org" onchange="applyLookaheadFilters()" aria-label="Filter by Contractor" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-700 bg-white">
+            <option value="ALL">All Contractors (27 Organizations)</option>
+          </select>
+          <select id="filter-status" onchange="applyLookaheadFilters()" aria-label="Filter by Status" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-700 bg-white">
+            <option value="ALL">All Task Statuses</option>
+            <option value="PENDING_SUBMISSION">Has Pending Trade Update (Unapproved)</option>
+            <option value="HAS_PREREQ">Has Open Roadblock / Prerequisite</option>
+            <option value="IN_WINDOW">Active in Visible Date Window</option>
+            <option value="COMPLETED">Completed (100% or C)</option>
+          </select>
+        </div>
+
+        <!-- Legend & Zero-Shift Hint -->
+        <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 pt-1">
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="font-semibold text-slate-700">Huddle Markup Key:</span>
+            <span class="inline-flex items-center gap-1"><kbd class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">S</kbd> Start</span>
+            <span class="inline-flex items-center gap-1"><kbd class="px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 font-bold text-[10px]">x</kbd> Active Work</span>
+            <span class="inline-flex items-center gap-1"><kbd class="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 font-bold text-[10px]">C</kbd> Complete</span>
+            <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span> Pending Trade Proposal (Locked until approved)</span>
+            <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span> Open Prerequisite</span>
+          </div>
+          <span class="text-slate-500 italic">Tip: Click any task row to edit details, or click any date cell to cycle S &rarr; x &rarr; C.</span>
+        </div>
+      </div>
+
+      <!-- Main Official Lookahead Schedule Grid -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div id="lookahead-grid-container" class="schedule-scroll overflow-x-auto max-h-[68vh]"></div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- TAB 2: MCGOUGH TRADE APPROVAL QUEUE                                 -->
+    <!-- =================================================================== -->
+    <section id="view-approvals" class="hidden flex-col gap-4">
+      <!-- Approver Governance Control Bar -->
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          </div>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h2 class="text-sm sm:text-base font-bold text-slate-900">McGough Approval Gatekeeper</h2>
+              <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">Official WWP Protected</span>
+            </div>
+            <p class="text-xs text-slate-500">Trade submissions stay isolated in staging until approved by specified McGough personnel below.</p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200">
+            <label for="active-approver-select" class="text-xs font-semibold text-slate-600 whitespace-nowrap">Acting Approver:</label>
+            <select id="active-approver-select" onchange="setActiveApprover(this.value)" class="text-xs font-bold text-slate-900 bg-transparent focus:outline-none"></select>
+          </div>
+          <button type="button" onclick="openApproversModal()" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-xs font-semibold text-slate-700 transition">
+            Edit Approver Roster
+          </button>
+          <button type="button" onclick="approveAllVisibleSubmissions()" class="px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold transition shadow-sm">
+            Approve All Pending
+          </button>
+        </div>
+      </div>
+
+      <!-- Weekly Trade Check-In Readiness Bar -->
+      <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex items-center justify-between gap-2 mb-2">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Weekly Trade Submission Status (Active Week 11 Contractors)</h3>
+          <button type="button" onclick="switchPortalMode('trade')" class="text-xs font-semibold text-red-700 hover:text-red-800">Test Submitting as a Trade Partner &rarr;</button>
+        </div>
+        <div id="submission-tracker-strip" class="flex flex-wrap gap-1.5"></div>
+      </div>
+
+      <!-- Filter Bar for Queue -->
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <select id="queue-filter-org" onchange="renderApprovalsView()" aria-label="Filter Submissions by Organization" class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-medium bg-white text-slate-700">
+            <option value="ALL">All Submitting Trades</option>
+          </select>
+          <select id="queue-filter-type" onchange="renderApprovalsView()" aria-label="Filter Submissions by Update Type" class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-medium bg-white text-slate-700">
+            <option value="ALL">All Submission Types</option>
+            <option value="TASK_UPDATE">Schedule / Progress Updates</option>
+            <option value="NEW_TASK">New Proposed Tasks</option>
+          </select>
+        </div>
+        <button type="button" onclick="clearDemoSubmissions()" class="text-xs font-medium text-slate-500 hover:text-slate-800 underline">
+          Clear Demo Staging Items
+        </button>
+      </div>
+
+      <!-- Pending Diff Cards List -->
+      <div id="approval-queue-container" class="flex flex-col gap-3"></div>
+
+      <!-- Approval & Rejection Audit Log -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mt-2">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">McGough Approval &amp; Merge History (Session Audit Trail)</h3>
+        <div id="audit-log-container"></div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- TAB 3: ROADBLOCKS & PREREQUISITES (OUTBUILD MAKE-READY BOARD)       -->
+    <!-- =================================================================== -->
+    <section id="view-roadblocks" class="hidden flex-col gap-4">
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-sm sm:text-base font-bold text-slate-900">Make-Ready Roadblocks &amp; Trade Prerequisites</h2>
+          <p class="text-xs text-slate-500">Track predecessor handoffs, core drills, equipment deliveries, and area turnovers before committing work to the weekly plan.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <select id="rb-filter-status" onchange="renderRoadblocksView()" aria-label="Filter Roadblocks by Status" class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-medium bg-white text-slate-700">
+            <option value="ALL">All Statuses</option>
+            <option value="OPEN">Open Blockers</option>
+            <option value="COORDINATED">Coordinated / In Progress</option>
+            <option value="CLEARED">Cleared (Install-Ready)</option>
+          </select>
+          <select id="rb-filter-area" onchange="renderRoadblocksView()" aria-label="Filter Roadblocks by Area" class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-medium bg-white text-slate-700">
+            <option value="ALL">All Areas</option>
+          </select>
+          <button type="button" onclick="openAddRoadblockModal()" class="px-3 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-600 text-white text-xs font-semibold transition flex items-center gap-1.5">
+            <span>+ Flag Roadblock</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="roadblocks-board-container" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- TAB 4: PPC ANALYTICS & 27 CONTRACTORS DIRECTORY (JOBDATA)           -->
+    <!-- =================================================================== -->
+    <section id="view-analytics" class="hidden flex-col gap-4">
+      <!-- KPI Row -->
+      <div id="analytics-kpi-container" class="grid grid-cols-2 lg:grid-cols-4 gap-3"></div>
+
+      <!-- Charts Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Assignments by Project Area</h3>
+          <div class="relative h-64">
+            <canvas id="chart-area-tasks"></canvas>
+          </div>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Top Active Trade Workload (Lookahead)</h3>
+          <div class="relative h-64">
+            <canvas id="chart-trade-workload"></canvas>
+          </div>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Constraints &amp; Variance Categories</h3>
+          <div class="relative h-64">
+            <canvas id="chart-variance-reasons"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive Weekly PPC Closeout Quick-Check -->
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Weekly PPC Closeout Scorecard ("Has task been completed as planned?")</h3>
+            <p class="text-xs text-slate-500">Toggle YES or NO (with Variance Category) on current-week commitments to automatically calculate Percent Plan Complete.</p>
+          </div>
+        </div>
+        <div id="ppc-eval-list" class="divide-y divide-slate-100 max-h-72 overflow-y-auto"></div>
+      </div>
+
+      <!-- Full 27 Contractors Directory (JOBDATA) -->
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Project Contractors Directory (JOBDATA Organizations)</h3>
+            <p class="text-xs text-slate-500">All 27 registered contractors with unique portal submission links and trade color badges.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="text" id="contractor-search" oninput="renderContractorsRoster()" placeholder="Filter contractors..." class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs" />
+            <button type="button" onclick="openAddContractorModal()" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition">+ Add Contractor</button>
+          </div>
+        </div>
+        <div id="contractors-roster-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===================================================================== -->
+  <!-- WORKSPACE B: TRADE PARTNER SUBMISSION PORTAL (SHARED LINK EXPERIENCE) -->
+  <!-- ===================================================================== -->
+  <main id="trade-portal-workspace" class="hidden flex-1 max-w-[1400px] w-full mx-auto px-3 sm:px-5 py-4 flex-col gap-4">
+    <!-- Trade Portal Banner -->
+    <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-4 sm:p-5 rounded-2xl shadow-md border border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="flex items-start gap-3.5">
+        <div class="w-11 h-11 rounded-xl bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-sky-300 shrink-0 mt-0.5">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-400/30">Trade Partner Submission Link View</span>
+            <span class="text-[11px] font-medium text-amber-300">🔒 Official WWP Read-Only</span>
+          </div>
+          <h2 class="text-base sm:text-lg font-bold mt-1">Submit Your Weekly Work Plan &amp; 3-Week Lookahead Updates</h2>
+          <p class="text-xs text-slate-300 mt-0.5">Select your company below, update dates/% complete/prerequisites on your tasks, or propose new tasks. Your submission goes to McGough Supervision for approval before updating the official plan.</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 shrink-0">
+        <button type="button" onclick="switchPortalMode('gc')" class="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition border border-white/15">
+          &larr; Return to McGough GC View
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 1: Contractor & Foreman Identity Bar -->
+    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+      <div>
+        <label for="portal-org-select" class="block text-xs font-bold text-slate-700 mb-1">1. Select Your Trade Organization</label>
+        <select id="portal-org-select" onchange="handlePortalOrgChange(this.value)" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-semibold text-slate-900 bg-white focus:outline-none focus:border-sky-600"></select>
+      </div>
+      <div>
+        <label for="portal-foreman-input" class="block text-xs font-bold text-slate-700 mb-1">2. Submitting Foreman / Superintendent Name</label>
+        <input type="text" id="portal-foreman-input" placeholder="Enter your name (e.g., Paul, Anthony Richison)" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm text-slate-900 focus:outline-none focus:border-sky-600" />
+      </div>
+      <div class="flex items-center justify-between md:justify-end gap-3 pb-1">
+        <label class="inline-flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer select-none">
+          <input type="checkbox" id="portal-show-other-trades" onchange="renderTradePortal()" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500" />
+          <span>Show other trades in same areas (Read-Only coordination)</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Main 2-Column Portal Layout: Left = Existing Tasks + Propose New Task | Right = Staged Submission Cart -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+      <!-- Left 8 cols -->
+      <div class="lg:col-span-8 flex flex-col gap-4">
+        <!-- Existing Assigned Tasks for Selected Trade -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-2">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">Your Scheduled Lookahead Assignments</h3>
+              <p class="text-xs text-slate-500">Click "Stage Update" on any task to propose revised dates, progress %, PPC status, or prerequisites.</p>
+            </div>
+          </div>
+          <div id="portal-tasks-container" class="divide-y divide-slate-100"></div>
+        </div>
+
+        <!-- Propose New Lookahead Task Form -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+          <h3 class="text-sm font-bold text-slate-900 mb-1">+ Propose New Lookahead Assignment</h3>
+          <p class="text-xs text-slate-500 mb-3">Adding upcoming work for Next Week, 2 Weeks Ahead, or 3 Weeks Ahead? Stage it here for McGough review.</p>
+
+          <div class="grid grid-cols-1 sm:grid-cols-6 gap-3">
+            <div class="sm:col-span-2">
+              <label for="new-task-area" class="block text-xs font-semibold text-slate-600 mb-1">Project Area *</label>
+              <select id="new-task-area" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs font-medium bg-white"></select>
+            </div>
+            <div class="sm:col-span-1">
+              <label for="new-task-wbs" class="block text-xs font-semibold text-slate-600 mb-1">WBS #</label>
+              <input type="text" id="new-task-wbs" placeholder="e.g. 8" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs" />
+            </div>
+            <div class="sm:col-span-1">
+              <label for="new-task-crew" class="block text-xs font-semibold text-slate-600 mb-1">Crew Size</label>
+              <input type="number" id="new-task-crew" min="1" max="99" value="4" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs" />
+            </div>
+            <div class="sm:col-span-1">
+              <label for="new-task-start" class="block text-xs font-semibold text-slate-600 mb-1">Start Date *</label>
+              <input type="date" id="new-task-start" value="2026-11-23" class="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs" />
+            </div>
+            <div class="sm:col-span-1">
+              <label for="new-task-end" class="block text-xs font-semibold text-slate-600 mb-1">End Date *</label>
+              <input type="date" id="new-task-end" value="2026-11-26" class="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs" />
+            </div>
+            <div class="sm:col-span-6">
+              <label for="new-task-desc" class="block text-xs font-semibold text-slate-600 mb-1">Assignment Description (How Many / How Far / What Sequence) *</label>
+              <input type="text" id="new-task-desc" placeholder="e.g., Install secondary containment framing - North aisle rows 1-4" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs" />
+            </div>
+            <div class="sm:col-span-6">
+              <label for="new-task-prereq" class="block text-xs font-semibold text-slate-600 mb-1">Required Prerequisite Work From Others (Optional Roadblock)</label>
+              <input type="text" id="new-task-prereq" placeholder="e.g., Needs overhead conduit inspection cleared in DH2" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs" />
+            </div>
+          </div>
+          <div class="mt-3 flex justify-end">
+            <button type="button" onclick="stageNewTaskFromPortal()" class="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition">
+              + Add New Task to Weekly Submission
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right 4 cols: Staged Submission Package Cart -->
+      <div class="lg:col-span-4 bg-white rounded-xl border border-slate-200 shadow-sm p-4 sticky top-16">
+        <div class="flex items-center justify-between gap-2 pb-3 border-b border-slate-100">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Staged Weekly Submission</h3>
+            <p class="text-xs text-slate-500">Gathered updates awaiting send</p>
+          </div>
+          <span id="portal-staged-count" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-100 text-sky-800">0 items</span>
+        </div>
+
+        <div id="portal-staged-list" class="py-3 flex flex-col gap-2.5 max-h-[380px] overflow-y-auto"></div>
+
+        <div class="pt-3 border-t border-slate-100 flex flex-col gap-2">
+          <button type="button" onclick="submitPortalPackageToMcGough()" class="w-full py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs sm:text-sm font-bold transition shadow-sm flex items-center justify-center gap-2">
+            <span>Submit Updates for McGough Approval</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+          </button>
+          <button type="button" onclick="exportStagedPacketJson()" class="w-full py-1.5 px-3 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-medium transition">
+            Download Submission Packet (.json)
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Shared Dynamic Modal Container -->
+  <div id="modal-backdrop" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-[2px] flex items-center justify-center p-3 sm:p-5 overflow-y-auto no-print" onclick="handleBackdropClick(event)">
+    <div id="modal-content" class="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-2xl overflow-hidden my-auto"></div>
+  </div>
+
+  <!-- Toast Notification Stack -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none no-print"></div>
+
+  <script>
+    // =========================================================================
+    // GROUNDED INITIAL PROJECT DATA (EXTRACTED FROM MCGOUGH WWP & JOBDATA)
+    // =========================================================================
+    const BASE_ANCHOR_DATE = '2026-11-18'; // Planning Week 11 Wednesday
+    const BASE_PLANNING_WEEK = 11;
+
+    const VARIANCE_CATEGORIES = [
+      'Prerequisite / Handoff Delay',
+      'Material / Equipment Delivery',
+      'Coordination / Area Access',
+      'Design / RFI / Submittal',
+      'Manpower / Crew Availability',
+      'Inspection / Testing Hold',
+      'Scope / Sequence Adjustment'
+    ];
+
+    const INITIAL_AREAS = [
+      'Admin',
+      'Data Hall 1',
+      'Data Hall 2',
+      'Data Hall 3',
+      'Data Hall 4',
+      'Data Hall 5',
+      'Data Hall 6'
+    ];
+
+    // All 27 Contractors from JOBDATA sheet + WWP sheet
+    const INITIAL_ORGANIZATIONS = [
+      { code: 'McGough', fullName: 'McGough - Construction', color: '#991b1b', defaultForeman: 'McGough Supervision', isGC: true },
+      { code: 'HPC', fullName: 'HPC', color: '#15803d', defaultForeman: 'Noel', isGC: false },
+      { code: 'ARCH Sales', fullName: 'ARCH Sales', color: '#b45309', defaultForeman: '', isGC: false },
+      { code: 'Wells', fullName: 'Wells', color: '#ca8a04', defaultForeman: '', isGC: false },
+      { code: 'Atkore', fullName: 'Atkore', color: '#6b21a8', defaultForeman: '', isGC: false },
+      { code: 'Matrix', fullName: 'Matrix', color: '#3f6212', defaultForeman: '', isGC: false },
+      { code: 'Magnum', fullName: 'Magnum', color: '#0284c7', defaultForeman: 'Paul', isGC: false },
+      { code: 'Steinbrecher', fullName: 'Steinbrecher', color: '#0ea5e9', defaultForeman: 'Broch', isGC: false },
+      { code: 'Magnum Controls', fullName: 'Magnum Controls', color: '#3b82f6', defaultForeman: '', isGC: false },
+      { code: 'JCI', fullName: 'JCI', color: '#db2777', defaultForeman: '', isGC: false },
+      { code: 'Nor-son', fullName: 'Nor-son', color: '#0d9488', defaultForeman: 'Neil', isGC: false },
+      { code: 'Webster', fullName: 'Webster', color: '#0f766e', defaultForeman: '', isGC: false },
+      { code: 'Superl', fullName: 'Superl', color: '#65a30d', defaultForeman: '', isGC: false },
+      { code: 'Viking', fullName: 'Viking', color: '#92400e', defaultForeman: 'Bob D', isGC: false },
+      { code: 'ArchKey', fullName: 'ArchKey', color: '#a16207', defaultForeman: '', isGC: false },
+      { code: 'Custom Drywall', fullName: 'Custom Drywall', color: '#1e3a8a', defaultForeman: 'Dan', isGC: false },
+      { code: 'McFarlane', fullName: 'McFarlane', color: '#2563eb', defaultForeman: '', isGC: false },
+      { code: 'Carciofini', fullName: 'Carciofini', color: '#4f46e5', defaultForeman: '', isGC: false },
+      { code: 'Modern', fullName: 'Modern', color: '#334155', defaultForeman: 'AJ', isGC: false },
+      { code: 'Smartt Construction', fullName: 'Smartt Construction', color: '#1e293b', defaultForeman: '', isGC: false },
+      { code: 'Acoustics Associates', fullName: 'Acoustics Associates', color: '#0369a1', defaultForeman: '', isGC: false },
+      { code: 'Architectural Arts', fullName: 'Architectural Arts', color: '#78350f', defaultForeman: '', isGC: false },
+      { code: 'Divcon', fullName: 'Divcon', color: '#d97706', defaultForeman: '', isGC: false },
+      { code: 'MatrixNDI', fullName: 'MatrixNDI', color: '#be123c', defaultForeman: '', isGC: false },
+      { code: 'LoenBro', fullName: 'LoenBro', color: '#573b26', defaultForeman: 'Anthony Richison', isGC: false },
+      { code: 'WL Hall', fullName: 'WL Hall', color: '#ea580c', defaultForeman: 'Derek Torrey', isGC: false },
+      { code: 'Accelevation', fullName: 'Accelevation', color: '#ec4899', defaultForeman: 'Rosa', isGC: false }
+    ];
+
+    // Designated McGough Personnel Approver Slots (Role-labeled without fabricated names; editable by user)
+    const INITIAL_APPROVERS = [
+      { id: 'app-1', name: 'Lead Superintendent', role: 'McGough Senior Field Approver', scope: 'All Areas & Trades' },
+      { id: 'app-2', name: 'MEP Superintendent', role: 'McGough MEP & Commissioning Lead', scope: 'Data Halls 1–6 MEP' },
+      { id: 'app-3', name: 'Area Superintendent (Interiors)', role: 'McGough Admin & Drywall/Ceilings', scope: 'Admin & Architectural' },
+      { id: 'app-4', name: 'Senior Project Engineer', role: 'McGough WWP Scheduler', scope: 'Lookahead Gatekeeper' }
+    ];
+
+    // Helper to generate weekday daily codes ('S', 'x', 'C') skipping Sunday (or keeping Saturday where marked on sheet)
+    function buildPlanRange(startStr, endStr, opts) {
+      const options = opts || {};
+      const map = {};
+      const cur = parseIsoDate(startStr);
+      const end = parseIsoDate(endStr);
+      while (cur <= end) {
+        const iso = formatIsoDate(cur);
+        const dow = cur.getDay(); // 0 = Sun, 6 = Sat
+        const includeSat = options.includeSat !== false;
+        if (dow !== 0 && (includeSat || dow !== 6)) {
+          map[iso] = 'x';
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+      if (options.markStart && map[startStr]) map[startStr] = 'S';
+      if (options.markComplete && map[endStr]) map[endStr] = 'C';
+      if (options.overrides) {
+        Object.keys(options.overrides).forEach(function(k) {
+          map[k] = options.overrides[k];
+        });
+      }
+      return map;
+    }
+
+    function parseIsoDate(str) {
+      const parts = (str || BASE_ANCHOR_DATE).split('-');
+      return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 12, 0, 0);
+    }
+
+    function formatIsoDate(dateObj) {
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + d;
+    }
+
+    function addDaysIso(isoStr, days) {
+      const d = parseIsoDate(isoStr);
+      d.setDate(d.getDate() + Number(days));
+      return formatIsoDate(d);
+    }
+
+    function diffDaysIso(startIso, endIso) {
+      const a = parseIsoDate(startIso);
+      const b = parseIsoDate(endIso);
+      return Math.round((b - a) / 86400000);
+    }
+
+    function formatShortDate(isoStr) {
+      if (!isoStr) return '—';
+      const d = parseIsoDate(isoStr);
+      return (d.getMonth() + 1) + '/' + d.getDate();
+    }
+
+    // All 44 Official WWP Tasks from the uploaded McGough WWP Sheet
+    function createInitialTasks() {
+      return [
+        // ================= ADMIN (11 Tasks) =================
+        {
+          id: 't-101', wbs: '5', area: 'Admin',
+          description: 'Cabinet install (waiting on delivery)',
+          org: 'Nor-son', responsible: 'Neil', crew: 3,
+          startDate: '2026-11-24', endDate: '2026-11-27', percentComplete: 0,
+          dailyPlan: buildPlanRange('2026-11-24', '2026-11-27', { markStart: true }),
+          completedAsPlanned: null, varianceCategory: '',
+          prerequisite: 'Waiting on cabinet material delivery confirmation', prerequisiteStatus: 'OPEN'
+        },
+        {
+          id: 't-102', wbs: '5', area: 'Admin',
+          description: 'Install Doors and Hardware (waiting until further finishes are in)',
+          org: 'Nor-son', responsible: 'Neil', crew: 2,
+          startDate: '2026-11-25', endDate: '2026-11-30', percentComplete: 0,
+          dailyPlan: buildPlanRange('2026-11-25', '2026-11-30', { markStart: true }),
+          completedAsPlanned: null, varianceCategory: '',
+          prerequisite: 'Waiting until prime/finish paint and adjacent wall finishes are complete', prerequisiteStatus: 'OPEN'
+        },
+        {
+          id: 't-103', wbs: '6', area: 'Admin',
+          description: 'Floor Boxes',
+          org: 'Magnum', responsible: 'Paul', crew: 3,
+          startDate: '2026-11-18', endDate: '2026-11-20', percentComplete: 85,
+          dailyPlan: { '2026-11-18': 'x', '2026-11-19': 'x', '2026-11-20': 'C' },
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-104', wbs: '6', area: 'Admin',
+          description: 'Overhead Rough ins',
+          org: 'Magnum', responsible: 'Paul', crew: 5,
+          startDate: '2026-11-18', endDate: '2026-11-24', percentComplete: 70,
+          dailyPlan: { '2026-11-18': '70%', '2026-11-19': 'x', '2026-11-20': 'x', '2026-11-21': 'x', '2026-11-23': 'x', '2026-11-24': 'x' },
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-105', wbs: '6', area: 'Admin',
+          description: 'Magnum - 4 Inch Jumpers (need core drills) (First Floor)',
+          org: 'Magnum', responsible: 'Paul', crew: 4,
+          startDate: '2026-11-20', endDate: '2026-11-23', percentComplete: 0,
+          dailyPlan: { '2026-11-20': 'S', '2026-11-21': 'x', '2026-11-23': 'x' },
+          completedAsPlanned: null, varianceCategory: '',
+          prerequisite: 'Need First Floor slab core drills laid out and completed prior to jumper pull', prerequisiteStatus: 'OPEN'
+        },
+        {
+          id: 't-106', wbs: '8', area: 'Admin',
+          description: 'Install TFO ductwork - E2',
+          org: 'Modern', responsible: 'AJ', crew: 4,
+          startDate: '2026-11-18', endDate: '2026-11-21', percentComplete: 80,
+          dailyPlan: { '2026-11-18': 'x', '2026-11-19': 'x', '2026-11-20': 'x', '2026-11-21': '80%' },
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-107', wbs: '8', area: 'Admin',
+          description: 'Soffit and ceiling framing',
+          org: 'Custom Drywall', responsible: 'Dan', crew: 4,
+          startDate: '2026-11-18', endDate: '2026-11-19', percentComplete: 20,
+          dailyPlan: { '2026-11-18': 'x', '2026-11-19': '20%' },
+          completedAsPlanned: null, varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-108', wbs: '8', area: 'Admin',
+          description: 'Shower ceiling rock and tape',
+          org: 'Custom Drywall', responsible: 'Dan', crew: 3,
+          startDate: '2026-11-18', endDate: '2026-11-19', percentComplete: 75,
+          dailyPlan: { '2026-11-18': 'x', '2026-11-19': '75%' },
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-109', wbs: '8', area: 'Admin',
+          description: 'Lvl 2 area E prime paint E2 (As far as they can)',
+          org: 'Steinbrecher', responsible: 'Broch', crew: 3,
+          startDate: '2026-11-18', endDate: '2026-11-20', percentComplete: 50,
+          dailyPlan: { '2026-11-18': '50%', '2026-11-19': 'x', '2026-11-20': 'x' },
+          completedAsPlanned: null, varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-110', wbs: '8', area: 'Admin',
+          description: 'Lvl 2 area F prime & finish paint (As far as they can)',
+          org: 'Steinbrecher', responsible: 'Broch', crew: 3,
+          startDate: '2026-11-18', endDate: '2026-11-20', percentComplete: 70,
+          dailyPlan: { '2026-11-18': '70%', '2026-11-19': 'x', '2026-11-20': 'C' },
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-111', wbs: '-', area: 'Admin',
+          description: 'Install Cage Material in POE/MMR Rooms',
+          org: 'Accelevation', responsible: 'Rosa', crew: 4,
+          startDate: '2026-11-18', endDate: '2026-11-18', percentComplete: 100,
+          dailyPlan: { '2026-11-18': 'C' },
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+
+        // ================= DATA HALL 1 (13 Tasks) =================
+        {
+          id: 't-201', wbs: '5', area: 'Data Hall 1',
+          description: 'Install Firestopping Sleeves (ongoing as they can)',
+          org: 'Superl', responsible: 'Superl Lead', crew: 2,
+          startDate: '2026-11-18', endDate: '2026-11-18', percentComplete: 100,
+          dailyPlan: { '2026-11-18': 'C' },
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-202', wbs: '8', area: 'Data Hall 1',
+          description: 'Start high volume system flush (ongoing) Base Build 11/20 Complete',
+          org: 'HPC', responsible: 'Noel', crew: 4,
+          startDate: '2026-11-18', endDate: '2026-11-20', percentComplete: 65,
+          dailyPlan: { '2026-11-18': 'x', '2026-11-19': 'x', '2026-11-20': 'C' },
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-203', wbs: '8', area: 'Data Hall 1',
+          description: 'Start chemical Passivation on combined Base Build carbon piping',
+          org: 'HPC', responsible: 'Noel', crew: 4,
+          startDate: '2026-11-20', endDate: '2026-11-24', percentComplete: 0,
+          dailyPlan: { '2026-11-20': 'S', '2026-11-21': 'x', '2026-11-23': 'x', '2026-11-24': 'C' },
+          completedAsPlanned: null, varianceCategory: '',
+          prerequisite: 'High volume flush completion on 11/20', prerequisiteStatus: 'COORDINATED'
+        },
+        {
+          id: 't-204', wbs: '8', area: 'Data Hall 1',
+          description: 'Start laying out TFO Flush headers after CDUs are placed',
+          org: 'HPC', responsible: 'Noel', crew: 3,
+          startDate: '2026-11-23', endDate: '2026-11-26', percentComplete: 0,
+          dailyPlan: buildPlanRange('2026-11-23', '2026-11-26', { markStart: true }),
+          completedAsPlanned: null, varianceCategory: '',
+          prerequisite: 'Requires CDU Skids received and set in place by LoenBro', prerequisiteStatus: 'OPEN'
+        },
+        {
+          id: 't-205', wbs: '8', area: 'Data Hall 1',
+          description: 'Install Pipe DH1 (CHW Below Ceiling North)',
+          org: 'LoenBro', responsible: 'Anthony Richison', crew: 6,
+          startDate: '2026-11-18', endDate: '2026-11-24', percentComplete: 60,
+          dailyPlan: { '2026-11-18': 'x', '2026-11-19': 'x', '2026-11-20': 'x', '2026-11-21': 'x', '2026-11-23': 'x', '2026-11-24': 'C' },
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-206', wbs: '8', area: 'Data Hall 1',
+          description: 'Install Pipe DH1 (CHW Below Ceiling South)',
+          org: 'LoenBro', responsible: 'Anthony Richison', crew: 6,
+          startDate: '2026-11-18', endDate: '2026-11-24', percentComplete: 55,
+          dailyPlan: { '2026-11-18': 'x', '2026-11-19': 'x', '2026-11-20': 'x', '2026-11-21': 'x', '2026-11-23': 'x', '2026-11-24': 'C' },
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-207', wbs: '8', area: 'Data Hall 1',
+          description: 'Insulate DH1 (Waiting on blanket)',
+          org: 'LoenBro', responsible: 'Anthony Richison', crew: 4,
+          startDate: '2026-11-23', endDate: '2026-11-26', percentComplete: 0,
+          dailyPlan: { '2026-11-23': 'S', '2026-11-24': 'x', '2026-11-25': 'x', '2026-11-26': 'x' },
+          completedAsPlanned: 'NO', varianceCategory: 'Material / Equipment Delivery',
+          prerequisite: 'Waiting on insulation blanket delivery to site', prerequisiteStatus: 'OPEN'
+        },
+        {
+          id: 't-208', wbs: '8', area: 'Data Hall 1',
+          description: 'Install Tech Water DH1',
+          org: 'LoenBro', responsible: 'Anthony Richison', crew: 5,
+          startDate: '2026-11-18', endDate: '2026-11-23', percentComplete: 75,
+          dailyPlan: { '2026-11-18': 'x', '2026-11-19': 'x', '2026-11-20': 'x', '2026-11-21': 'x', '2026-11-23': 'C' },
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-209', wbs: '8', area: 'Data Hall 1',
+          description: 'Receive CDU Skid',
+          org: 'LoenBro', responsible: 'Anthony Richison', crew: 4,
+          startDate: '2026-11-18', endDate: '2026-11-19', percentComplete: 80,
+          dailyPlan: { '2026-11-18': 'x', '2026-11-19': 'C' },
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-210', wbs: '9', area: 'Data Hall 1',
+          description: 'Structural ceiling grid installation - DH1 East Section',
+          org: 'WL Hall', responsible: 'Derek Torrey', crew: 6,
+          startDate: '2026-11-18', endDate: '2026-11-21', percentComplete: 65,
+          dailyPlan: { '2026-11-18': 'x', '2026-11-19': 'x', '2026-11-20': 'x', '2026-11-21': 'x' },
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-211', wbs: '10', area: 'Data Hall 1',
+          description: 'Fabrication DH1.7 Future Bypass Piping (2 Weeks Duration)',
+          org: 'LoenBro', responsible: 'Anthony Richison', crew: 5,
+          startDate: '2026-11-18', endDate: '2026-11-27', percentComplete: 50,
+          dailyPlan: buildPlanRange('2026-11-18', '2026-11-27', { overrides: { '2026-11-18': '50%' } }),
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-212', wbs: '10', area: 'Data Hall 1',
+          description: 'Pressure test DH1 piping',
+          org: 'LoenBro', responsible: 'Anthony Richison', crew: 3,
+          startDate: '2026-11-30', endDate: '2026-12-01', percentComplete: 0,
+          dailyPlan: { '2026-11-30': 'S', '2026-12-01': 'C' },
+          completedAsPlanned: null, varianceCategory: '',
+          prerequisite: 'Completion of DH1.7 & DH1.8 bypass weld inspection', prerequisiteStatus: 'COORDINATED'
+        },
+        {
+          id: 't-213', wbs: '10', area: 'Data Hall 1',
+          description: 'Fabrication DH1.8 Future Bypass Piping (1 Week Duration)',
+          org: 'LoenBro', responsible: 'Anthony Richison', crew: 5,
+          startDate: '2026-11-23', endDate: '2026-11-28', percentComplete: 0,
+          dailyPlan: buildPlanRange('2026-11-23', '2026-11-28', { markStart: true, markComplete: true }),
+          completedAsPlanned: null, varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+
+        // ================= DATA HALL 2 (8 Tasks) =================
+        {
+          id: 't-301', wbs: '6', area: 'Data Hall 2',
+          description: 'WL Hall - Structural Ceiling Drop Rod Install',
+          org: 'WL Hall', responsible: 'Derek Torrey', crew: 6,
+          startDate: '2026-11-18', endDate: '2026-11-30', percentComplete: 45,
+          dailyPlan: buildPlanRange('2026-11-18', '2026-11-30', { markComplete: true }),
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-302', wbs: '12', area: 'Data Hall 2',
+          description: 'Structural Ceiling Grid Installation - DH2 East Section',
+          org: 'WL Hall', responsible: 'Corey Harold', crew: 6,
+          startDate: '2026-11-21', endDate: '2026-12-02', percentComplete: 0,
+          dailyPlan: buildPlanRange('2026-11-21', '2026-12-02', { markStart: true, markComplete: true }),
+          completedAsPlanned: null, varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-303', wbs: '12', area: 'Data Hall 2',
+          description: 'Structural Ceiling Grid Installation - DH2 Center Section',
+          org: 'WL Hall', responsible: 'Corey Harold', crew: 6,
+          startDate: '2026-11-27', endDate: '2026-12-03', percentComplete: 0,
+          dailyPlan: buildPlanRange('2026-11-27', '2026-12-03', {}),
+          completedAsPlanned: null, varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-304', wbs: '7', area: 'Data Hall 2',
+          description: 'Install Lower Fire Drops',
+          org: 'Viking', responsible: 'Bob D', crew: 4,
+          startDate: '2026-11-18', endDate: '2026-11-21', percentComplete: 75,
+          dailyPlan: { '2026-11-18': 'x', '2026-11-19': 'x', '2026-11-20': 'x', '2026-11-21': 'C' },
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-305', wbs: '8', area: 'Data Hall 2',
+          description: 'Pull panels for CRAH units (pull them as Wrigley needs them)',
+          org: 'Custom Drywall', responsible: 'Dan', crew: 2,
+          startDate: '2026-11-19', endDate: '2026-11-25', percentComplete: 25,
+          dailyPlan: { '2026-11-19': 'x', '2026-11-21': 'x', '2026-11-24': 'x', '2026-11-25': 'x' },
+          completedAsPlanned: null, varianceCategory: '',
+          prerequisite: 'Coordinate CRAH unit rigging sequence for panel removal windows', prerequisiteStatus: 'OPEN'
+        },
+        {
+          id: 't-306', wbs: '9', area: 'Data Hall 2',
+          description: 'Insulate DH2 piping runs',
+          org: 'LoenBro', responsible: 'Anthony Richison', crew: 4,
+          startDate: '2026-11-18', endDate: '2026-11-21', percentComplete: 50,
+          dailyPlan: { '2026-11-18': 'x', '2026-11-19': 'x', '2026-11-20': 'x', '2026-11-21': 'x' },
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-307', wbs: '11', area: 'Data Hall 2',
+          description: 'Install HAC Piping DH2',
+          org: 'LoenBro', responsible: 'Anthony Richison', crew: 5,
+          startDate: '2026-11-23', endDate: '2026-11-26', percentComplete: 0,
+          dailyPlan: { '2026-11-23': 'S', '2026-11-24': 'x', '2026-11-25': 'x', '2026-11-26': 'x' },
+          completedAsPlanned: null, varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-308', wbs: '-', area: 'Data Hall 2',
+          description: 'Containment Panels layout & install',
+          org: 'Accelevation', responsible: 'Rosa', crew: 4,
+          startDate: '2026-11-25', endDate: '2026-11-28', percentComplete: 0,
+          dailyPlan: buildPlanRange('2026-11-25', '2026-11-28', { markStart: true }),
+          completedAsPlanned: null, varianceCategory: '',
+          prerequisite: 'Overhead ceiling grid East section clearance', prerequisiteStatus: 'COORDINATED'
+        },
+
+        // ================= DATA HALL 3 (9 Tasks) =================
+        {
+          id: 't-401', wbs: '6', area: 'Data Hall 3',
+          description: 'Upper RPP Conduit',
+          org: 'Magnum', responsible: 'Paul', crew: 5,
+          startDate: '2026-11-18', endDate: '2026-11-23', percentComplete: 65,
+          dailyPlan: { '2026-11-18': 'x', '2026-11-19': 'x', '2026-11-20': 'x', '2026-11-21': 'x', '2026-11-23': 'C' },
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-402', wbs: '5', area: 'Data Hall 3',
+          description: 'Install Firestopping Sleeves (ongoing as they can)',
+          org: 'Superl', responsible: 'Superl Lead', crew: 2,
+          startDate: '2026-11-18', endDate: '2026-11-25', percentComplete: 40,
+          dailyPlan: buildPlanRange('2026-11-18', '2026-11-25', {}),
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-403', wbs: '7', area: 'Data Hall 3',
+          description: 'Install Lower Drops',
+          org: 'Viking', responsible: 'Bob D', crew: 4,
+          startDate: '2026-11-18', endDate: '2026-11-28', percentComplete: 50,
+          dailyPlan: buildPlanRange('2026-11-18', '2026-11-28', { markComplete: true, overrides: { '2026-11-21': '50%' } }),
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-404', wbs: '8', area: 'Data Hall 3',
+          description: 'Remove Panels as Wrigley Needs',
+          org: 'Custom Drywall', responsible: 'Dan', crew: 2,
+          startDate: '2026-11-18', endDate: '2026-11-24', percentComplete: 30,
+          dailyPlan: { '2026-11-18': 'x', '2026-11-20': 'x', '2026-11-23': 'x', '2026-11-24': 'x' },
+          completedAsPlanned: null, varianceCategory: '',
+          prerequisite: 'On-call coordination with mechanical equipment move-in', prerequisiteStatus: 'OPEN'
+        },
+        {
+          id: 't-405', wbs: '8', area: 'Data Hall 3',
+          description: 'TFO cutouts for Raceways',
+          org: 'Custom Drywall', responsible: 'Dan', crew: 3,
+          startDate: '2026-11-18', endDate: '2026-11-19', percentComplete: 90,
+          dailyPlan: { '2026-11-18': '90%', '2026-11-19': 'C' },
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-406', wbs: '10', area: 'Data Hall 3',
+          description: 'Install Carbon Pipe DH3 (Above Ceiling) North',
+          org: 'LoenBro', responsible: 'Anthony Richison', crew: 6,
+          startDate: '2026-11-23', endDate: '2026-11-30', percentComplete: 0,
+          dailyPlan: buildPlanRange('2026-11-23', '2026-11-30', { markComplete: true }),
+          completedAsPlanned: null, varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-407', wbs: '10', area: 'Data Hall 3',
+          description: 'Install DH3 Bypass - North',
+          org: 'LoenBro', responsible: 'Anthony Richison', crew: 5,
+          startDate: '2026-11-18', endDate: '2026-11-23', percentComplete: 70,
+          dailyPlan: { '2026-11-18': 'x', '2026-11-19': 'x', '2026-11-20': 'x', '2026-11-21': 'x', '2026-11-23': 'C' },
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-408', wbs: '11', area: 'Data Hall 3',
+          description: 'Install Supports DH3 (Above Ceiling) South',
+          org: 'LoenBro', responsible: 'Anthony Richison', crew: 4,
+          startDate: '2026-11-18', endDate: '2026-11-23', percentComplete: 75,
+          dailyPlan: { '2026-11-18': 'x', '2026-11-19': 'x', '2026-11-20': 'x', '2026-11-21': 'x', '2026-11-23': 'C' },
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+        {
+          id: 't-409', wbs: '11', area: 'Data Hall 3',
+          description: 'Install DH3 Bypass - South',
+          org: 'LoenBro', responsible: 'Anthony Richison', crew: 5,
+          startDate: '2026-11-18', endDate: '2026-11-23', percentComplete: 65,
+          dailyPlan: { '2026-11-18': 'x', '2026-11-19': 'x', '2026-11-20': 'x', '2026-11-21': 'x', '2026-11-23': 'C' },
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+
+        // ================= DATA HALL 4 (1 Task) =================
+        {
+          id: 't-501', wbs: '8', area: 'Data Hall 4',
+          description: 'Patch TFO conduits as needed for Magnum',
+          org: 'Custom Drywall', responsible: 'Dan', crew: 3,
+          startDate: '2026-11-23', endDate: '2026-12-02', percentComplete: 0,
+          dailyPlan: { '2026-11-23': 'S', '2026-12-01': 'x', '2026-12-02': 'x' },
+          completedAsPlanned: null, varianceCategory: '',
+          prerequisite: 'Requires Magnum TFO conduit penetrations complete in DH4', prerequisiteStatus: 'OPEN'
+        },
+
+        // ================= DATA HALL 5 (1 Task) =================
+        {
+          id: 't-601', wbs: '7', area: 'Data Hall 5',
+          description: 'Install Upper Drops',
+          org: 'Viking', responsible: 'Bob D', crew: 4,
+          startDate: '2026-11-24', endDate: '2026-11-28', percentComplete: 0,
+          dailyPlan: buildPlanRange('2026-11-24', '2026-11-28', { markStart: true }),
+          completedAsPlanned: null, varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        },
+
+        // ================= DATA HALL 6 (1 Task) =================
+        {
+          id: 't-701', wbs: '11', area: 'Data Hall 6',
+          description: 'Install Upper Fire Drops',
+          org: 'Viking', responsible: 'Bob D', crew: 4,
+          startDate: '2026-11-18', endDate: '2026-11-28', percentComplete: 50,
+          dailyPlan: buildPlanRange('2026-11-18', '2026-11-28', { markComplete: true, overrides: { '2026-11-21': '50%' } }),
+          completedAsPlanned: 'YES', varianceCategory: '',
+          prerequisite: '', prerequisiteStatus: 'CLEARED'
+        }
+      ];
+    }
+
+    // Initial Pending Trade Submissions (Badged Demo Staging so Queue is immediately testable)
+    function createInitialPendingSubmissions() {
+      return [
+        {
+          subId: 'sub-demo-1',
+          isDemo: true,
+          type: 'TASK_UPDATE',
+          taskId: 't-105',
+          org: 'Magnum',
+          submittedBy: 'Paul',
+          submittedAt: '2026-11-18 08:45 AM',
+          area: 'Admin',
+          wbs: '6',
+          description: 'Magnum - 4 Inch Jumpers (need core drills) (First Floor)',
+          proposedStartDate: '2026-11-23',
+          proposedEndDate: '2026-11-25',
+          proposedPercent: 0,
+          proposedCrew: 4,
+          proposedCompletedAsPlanned: 'NO',
+          proposedVarianceCategory: 'Prerequisite / Handoff Delay',
+          proposedPrerequisite: 'First Floor core drills layout verified; shifting start to Monday 11/23 once coring finishes Friday',
+          comment: 'Requesting 2-workday shift so core drilling crew clears First Floor risers.'
+        },
+        {
+          subId: 'sub-demo-2',
+          isDemo: true,
+          type: 'TASK_UPDATE',
+          taskId: 't-209',
+          org: 'LoenBro',
+          submittedBy: 'Anthony Richison',
+          submittedAt: '2026-11-18 09:10 AM',
+          area: 'Data Hall 1',
+          wbs: '8',
+          description: 'Receive CDU Skid',
+          proposedStartDate: '2026-11-18',
+          proposedEndDate: '2026-11-19',
+          proposedPercent: 100,
+          proposedCrew: 4,
+          proposedCompletedAsPlanned: 'YES',
+          proposedVarianceCategory: '',
+          proposedPrerequisite: '',
+          comment: 'CDU skid offloaded and set on pads ahead of schedule — ready to release HPC TFO flush header layout.'
+        },
+        {
+          subId: 'sub-demo-3',
+          isDemo: true,
+          type: 'NEW_TASK',
+          taskId: null,
+          org: 'WL Hall',
+          submittedBy: 'Corey Harold',
+          submittedAt: '2026-11-18 09:32 AM',
+          area: 'Data Hall 2',
+          wbs: '12',
+          description: 'Structural Ceiling Grid Installation - DH2 West Section (Follow-on sequence)',
+          proposedStartDate: '2026-12-01',
+          proposedEndDate: '2026-12-05',
+          proposedPercent: 0,
+          proposedCrew: 6,
+          proposedCompletedAsPlanned: null,
+          proposedVarianceCategory: '',
+          proposedPrerequisite: 'Drop rod inspection sign-off in DH2 West',
+          comment: 'Adding 3-week lookahead continuation immediately following DH2 Center section.'
+        },
+        {
+          subId: 'sub-demo-4',
+          isDemo: true,
+          type: 'TASK_UPDATE',
+          taskId: 't-107',
+          org: 'Custom Drywall',
+          submittedBy: 'Dan',
+          submittedAt: '2026-11-18 09:50 AM',
+          area: 'Admin',
+          wbs: '8',
+          description: 'Soffit and ceiling framing',
+          proposedStartDate: '2026-11-18',
+          proposedEndDate: '2026-11-21',
+          proposedPercent: 45,
+          proposedCrew: 5,
+          proposedCompletedAsPlanned: 'YES',
+          proposedVarianceCategory: '',
+          proposedPrerequisite: '',
+          comment: 'Adding 1 framer Friday & Saturday to close out Admin East soffits before Steinbrecher prime paint.'
+        }
+      ];
+    }
+
+    // =========================================================================
+    // APPLICATION STATE & SAFE PERSISTENCE
+    // =========================================================================
+    const STORAGE_KEY = 'mcgough_wwp_state_v1';
+
+    let state = {
+      portalMode: 'gc', // 'gc' | 'trade'
+      gcTab: 'lookahead', // 'lookahead' | 'approvals' | 'roadblocks' | 'analytics'
+      lookaheadStart: '2026-11-18',
+      horizonDays: 16, // Matches 11/18 to 12/03 sheet view by default
+      displayMode: 'hybrid', // 'hybrid' | 'bars' | 'codes'
+      collapsedAreas: {},
+      areas: INITIAL_AREAS.slice(),
+      organizations: JSON.parse(JSON.stringify(INITIAL_ORGANIZATIONS)),
+      approvers: JSON.parse(JSON.stringify(INITIAL_APPROVERS)),
+      activeApproverId: 'app-1',
+      officialTasks: createInitialTasks(),
+      pendingSubmissions: createInitialPendingSubmissions(),
+      auditLog: [], // Starts empty until real user actions occur
+      // Trade portal session state
+      selectedTradeOrg: 'LoenBro',
+      portalForeman: 'Anthony Richison',
+      portalStagedItems: []
+    };
+
+    let chartInstances = {
+      area: null,
+      trade: null,
+      variance: null
+    };
+
+    function loadSavedState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.officialTasks) && parsed.officialTasks.length > 0) {
+            state = Object.assign({}, state, parsed);
+          }
+        }
+      } catch (err) {
+        // Ignore storage errors in restricted environments
+      }
+      // Check hash routing for direct trade portal links e.g. #portal?org=Magnum
+      applyUrlHashRouting();
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (err) {
+        // Ignore storage errors in restricted environments
+      }
+    }
+
+    function applyUrlHashRouting() {
+      const hash = window.location.hash || '';
+      if (hash.indexOf('#portal') === 0) {
+        state.portalMode = 'trade';
+        const qIndex = hash.indexOf('?');
+        if (qIndex !== -1) {
+          const params = new URLSearchParams(hash.slice(qIndex + 1));
+          const orgParam = params.get('org');
+          if (orgParam && getOrgByCode(orgParam)) {
+            state.selectedTradeOrg = orgParam;
+            const orgObj = getOrgByCode(orgParam);
+            if (orgObj && orgObj.defaultForeman) {
+              state.portalForeman = orgObj.defaultForeman;
+            }
+          }
+        }
+      }
+    }
+
+    // =========================================================================
+    // HELPERS
+    // =========================================================================
+    function escapeHtml(str) {
+      return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function getOrgByCode(code) {
+      for (let i = 0; i < state.organizations.length; i++) {
+        if (state.organizations[i].code.toLowerCase() === String(code || '').toLowerCase()) {
+          return state.organizations[i];
+        }
+      }
+      return { code: code || 'Unassigned', fullName: code || 'Unassigned', color: '#475569', defaultForeman: '' };
+    }
+
+    function getActiveApprover() {
+      for (let i = 0; i < state.approvers.length; i++) {
+        if (state.approvers[i].id === state.activeApproverId) return state.approvers[i];
+      }
+      return state.approvers[0] || { id: 'app-1', name: 'Lead Superintendent', role: 'McGough Approver', scope: 'All' };
+    }
+
+    function getTaskById(taskId) {
+      for (let i = 0; i < state.officialTasks.length; i++) {
+        if (state.officialTasks[i].id === taskId) return state.officialTasks[i];
+      }
+      return null;
+    }
+
+    function getPendingForTask(taskId) {
+      const matches = [];
+      for (let i = 0; i < state.pendingSubmissions.length; i++) {
+        if (state.pendingSubmissions[i].taskId === taskId) {
+          matches.push(state.pendingSubmissions[i]);
+        }
+      }
+      return matches;
+    }
+
+    function computePlanningWeekNumber(startIso) {
+      const diff = diffDaysIso(BASE_ANCHOR_DATE, startIso);
+      const weekOffset = Math.floor(diff / 7);
+      return BASE_PLANNING_WEEK + weekOffset;
+    }
+
+    function showToast(message, variant) {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      const tone = variant || 'success';
+      const bgClass = tone === 'error'
+        ? 'bg-rose-900 border-rose-700 text-white'
+        : tone === 'info'
+          ? 'bg-slate-900 border-slate-700 text-white'
+          : 'bg-emerald-900 border-emerald-700 text-white';
+
+      const el = document.createElement('div');
+      el.className = 'pointer-events-auto px-4 py-3 rounded-xl border shadow-lg text-xs font-medium flex items-center gap-2.5 transition-all ' + bgClass;
+      el.innerHTML = '<span class="w-2 h-2 rounded-full bg-current shrink-0"></span><span>' + escapeHtml(message) + '</span>';
+      container.appendChild(el);
+      setTimeout(function() {
+        if (el.parentNode) el.parentNode.removeChild(el);
+      }, 3800);
+    }
+
+    function copyTextSafe(text, successMsg) {
+      const done = function() {
+        showToast(successMsg || 'Copied to clipboard!', 'info');
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(function() {
+          fallbackCopy(text, done);
+        });
+      } else {
+        fallbackCopy(text, done);
+      }
+    }
+
+    function fallbackCopy(text, callback) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try {
+        document.execCommand('copy');
+        if (callback) callback();
+      } catch (e) {
+        showToast('Copy ready — select text in modal to copy.', 'info');
+      }
+      document.body.removeChild(ta);
+    }
+
+    // =========================================================================
+    // NAVIGATION & GLOBAL RENDER DISPATCH
+    // =========================================================================
+    function renderAll() {
+      // Update header badges & week label
+      const wkNum = computePlanningWeekNumber(state.lookaheadStart);
+      const wkLabel = document.getElementById('planning-week-label');
+      if (wkLabel) wkLabel.textContent = 'Planning Week ' + wkNum;
+
+      const pendingCount = state.pendingSubmissions.length;
+      const badgeTop = document.getElementById('pending-badge-top');
+      const badgeTab = document.getElementById('pending-badge-tab');
+      if (badgeTop) {
+        badgeTop.textContent = String(pendingCount);
+        badgeTop.className = pendingCount > 0
+          ? 'ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-400 text-slate-950'
+          : 'ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-slate-700 text-slate-300';
+      }
+      if (badgeTab) {
+        badgeTab.textContent = String(pendingCount);
+      }
+
+      const openRbCount = state.officialTasks.filter(function(t) {
+        return t.prerequisite && t.prerequisiteStatus !== 'CLEARED';
+      }).length;
+      const rbBadge = document.getElementById('roadblock-badge-tab');
+      if (rbBadge) rbBadge.textContent = String(openRbCount);
+
+      const activeApp = getActiveApprover();
+      const appPill = document.getElementById('active-approver-pill');
+      if (appPill) appPill.textContent = activeApp.name;
+
+      // Toggle Portal Mode
+      const gcWs = document.getElementById('gc-workspace');
+      const tradeWs = document.getElementById('trade-portal-workspace');
+      const btnGc = document.getElementById('mode-btn-gc');
+      const btnTrade = document.getElementById('mode-btn-trade');
+
+      if (state.portalMode === 'gc') {
+        gcWs.classList.remove('hidden');
+        gcWs.classList.add('flex');
+        tradeWs.classList.add('hidden');
+        tradeWs.classList.remove('flex');
+        btnGc.className = 'px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 bg-white text-slate-900 shadow-sm';
+        btnTrade.className = 'px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 text-slate-300 hover:text-white';
+        populateDropdownOptions();
+        renderActiveGcTab();
+      } else {
+        gcWs.classList.add('hidden');
+        gcWs.classList.remove('flex');
+        tradeWs.classList.remove('hidden');
+        tradeWs.classList.add('flex');
+        btnTrade.className = 'px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 bg-sky-500 text-white shadow-sm';
+        btnGc.className = 'px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 text-slate-300 hover:text-white';
+        populatePortalDropdowns();
+        renderTradePortal();
+      }
+    }
+
+    function switchPortalMode(mode) {
+      state.portalMode = mode;
+      saveState();
+      renderAll();
+    }
+
+    function switchGcTab(tab) {
+      state.gcTab = tab;
+      saveState();
+      renderActiveGcTab();
+    }
+
+    function renderActiveGcTab() {
+      const tabs = ['lookahead', 'approvals', 'roadblocks', 'analytics'];
+      tabs.forEach(function(t) {
+        const btn = document.getElementById('gc-tab-' + t);
+        const sec = document.getElementById('view-' + t);
+        if (!btn || !sec) return;
+        if (t === state.gcTab) {
+          btn.className = 'px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-slate-900 text-white shadow-sm';
+          sec.classList.remove('hidden');
+          sec.classList.add('flex');
+        } else {
+          btn.className = 'px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-slate-600 hover:bg-slate-100';
+          sec.classList.add('hidden');
+          sec.classList.remove('flex');
+        }
+      });
+
+      if (state.gcTab === 'lookahead') renderLookaheadView();
+      else if (state.gcTab === 'approvals') renderApprovalsView();
+      else if (state.gcTab === 'roadblocks') renderRoadblocksView();
+      else if (state.gcTab === 'analytics') renderAnalyticsView();
+    }
+
+    function populateDropdownOptions() {
+      // Area filter
+      const areaSel = document.getElementById('filter-area');
+      const curArea = areaSel.value || 'ALL';
+      areaSel.innerHTML = '<option value="ALL">All Project Areas (' + state.areas.length + ')</option>' +
+        state.areas.map(function(a) {
+          return '<option value="' + escapeHtml(a) + '">' + escapeHtml(a) + '</option>';
+        }).join('');
+      areaSel.value = state.areas.indexOf(curArea) !== -1 ? curArea : 'ALL';
+
+      // Org filter
+      const orgSel = document.getElementById('filter-org');
+      const curOrg = orgSel.value || 'ALL';
+      orgSel.innerHTML = '<option value="ALL">All Contractors (' + state.organizations.length + ' Orgs)</option>' +
+        state.organizations.map(function(o) {
+          const cnt = state.officialTasks.filter(function(t) { return t.org === o.code; }).length;
+          return '<option value="' + escapeHtml(o.code) + '">' + escapeHtml(o.code) + (cnt > 0 ? ' (' + cnt + ' tasks)' : '') + '</option>';
+        }).join('');
+      orgSel.value = curOrg;
+
+      // Active Approver Select
+      const appSel = document.getElementById('active-approver-select');
+      if (appSel) {
+        appSel.innerHTML = state.approvers.map(function(a) {
+          return '<option value="' + escapeHtml(a.id) + '">' + escapeHtml(a.name) + ' — ' + escapeHtml(a.role) + '</option>';
+        }).join('');
+        appSel.value = state.activeApproverId;
+      }
+
+      // Queue org filter
+      const qOrg = document.getElementById('queue-filter-org');
+      if (qOrg) {
+        const prevQ = qOrg.value || 'ALL';
+        const subOrgs = [];
+        state.pendingSubmissions.forEach(function(s) {
+          if (subOrgs.indexOf(s.org) === -1) subOrgs.push(s.org);
+        });
+        qOrg.innerHTML = '<option value="ALL">All Submitting Trades (' + subOrgs.length + ')</option>' +
+          subOrgs.map(function(c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('');
+        qOrg.value = subOrgs.indexOf(prevQ) !== -1 ? prevQ : 'ALL';
+      }
+
+      // Roadblock area filter
+      const rbArea = document.getElementById('rb-filter-area');
+      if (rbArea) {
+        const prevRb = rbArea.value || 'ALL';
+        rbArea.innerHTML = '<option value="ALL">All Areas</option>' +
+          state.areas.map(function(a) { return '<option value="' + escapeHtml(a) + '">' + escapeHtml(a) + '</option>'; }).join('');
+        rbArea.value = state.areas.indexOf(prevRb) !== -1 ? prevRb : 'ALL';
+      }
+    }
+
+    // =========================================================================
+    // TAB 1: LOOKAHEAD & OFFICIAL WWP RENDERING
+    // =========================================================================
+    function shiftLookaheadDays(delta) {
+      state.lookaheadStart = addDaysIso(state.lookaheadStart, delta);
+      const inp = document.getElementById('lookahead-start-input');
+      if (inp) inp.value = state.lookaheadStart;
+      saveState();
+      renderAll();
+      showToast('Window shifted to ' + formatShortDate(state.lookaheadStart) + ' — all tasks stayed anchored to their calendar dates!', 'info');
+    }
+
+    function resetLookaheadToday() {
+      state.lookaheadStart = BASE_ANCHOR_DATE;
+      const inp = document.getElementById('lookahead-start-input');
+      if (inp) inp.value = state.lookaheadStart;
+      saveState();
+      renderAll();
+    }
+
+    function setLookaheadStartDate(val) {
+      if (!val) return;
+      state.lookaheadStart = val;
+      saveState();
+      renderAll();
+    }
+
+    function setHorizonWeeks(daysVal) {
+      state.horizonDays = Number(daysVal) || 16;
+      saveState();
+      renderLookaheadView();
+    }
+
+    function setDisplayMode(modeVal) {
+      state.displayMode = modeVal || 'hybrid';
+      saveState();
+      renderLookaheadView();
+    }
+
+    function applyLookaheadFilters() {
+      renderLookaheadView();
+    }
+
+    function toggleAreaCollapse(areaName) {
+      state.collapsedAreas[areaName] = !state.collapsedAreas[areaName];
+      saveState();
+      renderLookaheadView();
+    }
+
+    function expandCollapseAllAreas() {
+      const anyCollapsed = state.areas.some(function(a) { return Boolean(state.collapsedAreas[a]); });
+      state.areas.forEach(function(a) {
+        state.collapsedAreas[a] = !anyCollapsed;
+      });
+      saveState();
+      renderLookaheadView();
+    }
+
+    function computePpcStats() {
+      let yesCount = 0;
+      let noCount = 0;
+      state.officialTasks.forEach(function(t) {
+        if (t.completedAsPlanned === 'YES') yesCount++;
+        else if (t.completedAsPlanned === 'NO') noCount++;
+      });
+      const totalEval = yesCount + noCount;
+      const pct = totalEval > 0 ? Math.round((yesCount / totalEval) * 100) : 100;
+      return { yesCount: yesCount, noCount: noCount, totalEval: totalEval, pct: pct };
+    }
+
+    function renderLookaheadView() {
+      const inp = document.getElementById('lookahead-start-input');
+      if (inp && inp.value !== state.lookaheadStart) inp.value = state.lookaheadStart;
+
+      const windowStart = state.lookaheadStart;
+      const windowEnd = addDaysIso(windowStart, state.horizonDays - 1);
+
+      // Build array of visible dates
+      const dates = [];
+      const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+      for (let i = 0; i < state.horizonDays; i++) {
+        const iso = addDaysIso(windowStart, i);
+        const dObj = parseIsoDate(iso);
+        const dow = dObj.getDay();
+        dates.push({
+          iso: iso,
+          shortLabel: (dObj.getMonth() + 1) + '/' + dObj.getDate(),
+          dowLabel: dayNames[dow],
+          isWeekend: dow === 0 || dow === 6,
+          isToday: iso === BASE_ANCHOR_DATE
+        });
+      }
+
+      // Render KPI Strip
+      const ppc = computePpcStats();
+      const activeWindowTasks = state.officialTasks.filter(function(t) {
+        return t.endDate >= windowStart && t.startDate <= windowEnd;
+      });
+      const activeOrgsSet = {};
+      activeWindowTasks.forEach(function(t) { activeOrgsSet[t.org] = true; });
+      const openRoadblocks = state.officialTasks.filter(function(t) {
+        return t.prerequisite && t.prerequisiteStatus !== 'CLEARED';
+      }).length;
+
+      const kpiStrip = document.getElementById('lookahead-kpi-strip');
+      kpiStrip.innerHTML = [
+        {
+          label: '% Planned Complete (PPC)',
+          value: ppc.pct + '%',
+          sub: ppc.yesCount + ' Yes / ' + ppc.totalEval + ' evaluated commitments',
+          tone: 'text-emerald-700 bg-emerald-50/70 border-emerald-200'
+        },
+        {
+          label: 'Tasks in Window (' + formatShortDate(windowStart) + '–' + formatShortDate(windowEnd) + ')',
+          value: String(activeWindowTasks.length),
+          sub: state.officialTasks.length + ' total official tasks tracked',
+          tone: 'text-slate-900 bg-white border-slate-200'
+        },
+        {
+          label: 'Active Trades Scheduled',
+          value: Object.keys(activeOrgsSet).length + ' / ' + state.organizations.length,
+          sub: 'Across ' + state.areas.length + ' Data Center areas',
+          tone: 'text-sky-800 bg-white border-slate-200'
+        },
+        {
+          label: 'Pending Trade Submissions',
+          value: String(state.pendingSubmissions.length),
+          sub: state.pendingSubmissions.length > 0 ? 'Click Approval Queue to review & merge' : 'All trade updates merged',
+          tone: state.pendingSubmissions.length > 0 ? 'text-amber-800 bg-amber-50/80 border-amber-200 cursor-pointer' : 'text-slate-700 bg-white border-slate-200',
+          action: "switchGcTab('approvals')"
+        },
+        {
+          label: 'Open Prerequisites / Roadblocks',
+          value: String(openRoadblocks),
+          sub: 'Make-ready handoffs tracked',
+          tone: openRoadblocks > 0 ? 'text-rose-800 bg-rose-50/60 border-rose-200 cursor-pointer' : 'text-emerald-800 bg-white border-slate-200',
+          action: "switchGcTab('roadblocks')"
+        }
+      ].map(function(card) {
+        const clickAttr = card.action ? ' onclick="' + card.action + '"' : '';
+        return '<div' + clickAttr + ' class="p-3 rounded-xl border shadow-sm transition hover:shadow ' + card.tone + '">' +
+          '<div class="text-[11px] font-semibold uppercase tracking-wider opacity-80">' + escapeHtml(card.label) + '</div>' +
+          '<div class="text-xl sm:text-2xl font-bold mt-0.5">' + escapeHtml(card.value) + '</div>' +
+          '<div class="text-[11px] opacity-75 mt-0.5 truncate">' + escapeHtml(card.sub) + '</div>' +
+        '</div>';
+      }).join('');
+
+      // Group top horizon bands (Next Week's Work / Two Weeks Ahead / Three Weeks Ahead)
+      const horizonGroups = [];
+      let idx = 0;
+      if (state.horizonDays === 16 && windowStart === '2026-11-18') {
+        // Exact match to McGough reference header buckets on 11/18
+        horizonGroups.push({ label: "NEXT WEEK'S WORK", span: 2 });
+        horizonGroups.push({ label: 'TWO WEEKS AHEAD', span: 7 });
+        horizonGroups.push({ label: 'THREE WEEKS AHEAD', span: 7 });
+      } else {
+        let weekCounter = 1;
+        while (idx < dates.length) {
+          const chunk = Math.min(7, dates.length - idx);
+          const lbl = weekCounter === 1 ? 'WEEK 1 (COMMITMENT WINDOW)' : 'WEEK ' + weekCounter + ' LOOKAHEAD';
+          horizonGroups.push({ label: lbl, span: chunk });
+          idx += chunk;
+          weekCounter++;
+        }
+      }
+
+      // Filter official tasks
+      const q = (document.getElementById('filter-search').value || '').trim().toLowerCase();
+      const areaFilter = document.getElementById('filter-area').value || 'ALL';
+      const orgFilter = document.getElementById('filter-org').value || 'ALL';
+      const statusFilter = document.getElementById('filter-status').value || 'ALL';
+
+      const filteredTasks = state.officialTasks.filter(function(t) {
+        if (areaFilter !== 'ALL' && t.area !== areaFilter) return false;
+        if (orgFilter !== 'ALL' && t.org !== orgFilter) return false;
+        if (statusFilter === 'PENDING_SUBMISSION' && getPendingForTask(t.id).length === 0) return false;
+        if (statusFilter === 'HAS_PREREQ' && (!t.prerequisite || t.prerequisiteStatus === 'CLEARED')) return false;
+        if (statusFilter === 'IN_WINDOW' && (t.endDate < windowStart || t.startDate > windowEnd)) return false;
+        if (statusFilter === 'COMPLETED' && t.percentComplete < 100) return false;
+        if (q) {
+          const hay = [t.wbs, t.area, t.description, t.org, t.responsible, t.prerequisite].join(' ').toLowerCase();
+          if (hay.indexOf(q) === -1) return false;
+        }
+        return true;
+      });
+
+      // Build Table HTML
+      let html = '<table class="w-full border-collapse text-left text-xs select-none">';
+      // Row 1 Header: Horizon Buckets
+      html += '<thead class="sticky-header-top bg-slate-900 text-white shadow-sm">';
+      html += '<tr class="border-b border-slate-700 text-[10px] uppercase tracking-wider">';
+      html += '<th class="sticky-col-left bg-slate-900 px-3 py-1.5 font-bold text-slate-300 border-r border-slate-700">Official Assignment</th>';
+      html += '<th colspan="4" class="bg-slate-900 px-3 py-1.5 font-bold text-slate-300 border-r border-slate-700">WBS &amp; Trade Ownership</th>';
+      horizonGroups.forEach(function(g) {
+        html += '<th colspan="' + g.span + '" class="px-2 py-1.5 text-center font-bold bg-slate-800 text-slate-200 border-r border-slate-700">' + escapeHtml(g.label) + '</th>';
+      });
+      html += '<th colspan="2" class="px-2.5 py-1.5 text-center font-bold bg-slate-900 text-slate-300">PPC &amp; Make-Ready</th>';
+      html += '</tr>';
+
+      // Row 2 Header: Column Titles & Dates
+      html += '<tr class="bg-slate-800 text-slate-200 border-b border-slate-700 text-[11px]">';
+      html += '<th class="sticky-col-left bg-slate-800 px-3 py-2 min-w-[240px] max-w-[320px] font-semibold border-r border-slate-700">Assignment Description (How Many / Sequence)</th>';
+      html += '<th class="px-2 py-2 w-12 text-center font-semibold border-r border-slate-700">WBS</th>';
+      html += '<th class="px-2.5 py-2 min-w-[125px] font-semibold border-r border-slate-700">Organization</th>';
+      html += '<th class="px-2.5 py-2 min-w-[110px] font-semibold border-r border-slate-700">Responsible</th>';
+      html += '<th class="px-2 py-2 w-14 text-center font-semibold border-r border-slate-700">%</th>';
+
+      dates.forEach(function(d) {
+        const hdrCls = d.isToday
+          ? 'bg-red-800 text-white border-r border-red-600'
+          : d.isWeekend
+            ? 'bg-slate-700/80 text-slate-300 border-r border-slate-600'
+            : 'bg-slate-800 text-slate-200 border-r border-slate-700';
+        html += '<th class="gantt-cell px-1 py-1.5 text-center font-semibold ' + hdrCls + '">' +
+          '<div class="text-[10px] leading-tight">' + d.shortLabel + '</div>' +
+          '<div class="text-[9px] font-normal opacity-80">' + d.dowLabel + '</div>' +
+        '</th>';
+      });
+
+      html += '<th class="px-2 py-2 w-20 text-center font-semibold border-r border-slate-700" title="Has task been completed as planned?">Planned?</th>';
+      html += '<th class="px-3 py-2 min-w-[200px] font-semibold">Prerequisite / Roadblock</th>';
+      html += '</tr></thead><tbody class="divide-y divide-slate-200">';
+
+      // Group rows by Project Area
+      const areasToRender = areaFilter === 'ALL' ? state.areas : [areaFilter];
+      let renderedRowCount = 0;
+
+      areasToRender.forEach(function(areaName) {
+        const areaTasks = filteredTasks.filter(function(t) { return t.area === areaName; });
+        if (areaTasks.length === 0 && (q || orgFilter !== 'ALL' || statusFilter !== 'ALL')) return;
+
+        const isCollapsed = Boolean(state.collapsedAreas[areaName]);
+        const areaTrades = {};
+        let areaPending = 0;
+        areaTasks.forEach(function(t) {
+          areaTrades[t.org] = true;
+          areaPending += getPendingForTask(t.id).length;
+        });
+
+        // Area Swimlane Header Row (Clean Outbuild Style instead of harsh neon)
+        const totalCols = 7 + dates.length;
+        html += '<tr class="bg-slate-100/95 hover:bg-slate-200/70 cursor-pointer border-y border-slate-300 transition" onclick="toggleAreaCollapse(\'' + escapeHtml(areaName) + '\')">';
+        html += '<td colspan="' + totalCols + '" class="px-3 py-2">';
+        html += '<div class="flex items-center justify-between gap-2">';
+        html += '<div class="flex items-center gap-2.5">';
+        html += '<span class="w-5 h-5 rounded bg-slate-800 text-white inline-flex items-center justify-center text-[10px] font-bold">' + (isCollapsed ? '+' : '−') + '</span>';
+        html += '<span class="font-bold text-xs sm:text-sm text-slate-900 tracking-tight">' + escapeHtml(areaName) + '</span>';
+        html += '<span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-white text-slate-600 border border-slate-300">' + areaTasks.length + ' task' + (areaTasks.length === 1 ? '' : 's') + ' &bull; ' + Object.keys(areaTrades).length + ' trade' + (Object.keys(areaTrades).length === 1 ? '' : 's') + '</span>';
+        if (areaPending > 0) {
+          html += '<span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">' + areaPending + ' pending trade update' + (areaPending === 1 ? '' : 's') + '</span>';
+        }
+        html += '</div>';
+        html += '<button type="button" onclick="event.stopPropagation(); openTaskModal(null, \'' + escapeHtml(areaName) + '\')" class="text-[11px] font-semibold text-slate-700 hover:text-red-700 px-2 py-0.5 rounded bg-white border border-slate-300 shadow-sm">+ Task in ' + escapeHtml(areaName) + '</button>';
+        html += '</div></td></tr>';
+
+        if (isCollapsed) return;
+
+        if (areaTasks.length === 0) {
+          html += '<tr><td colspan="' + totalCols + '" class="px-4 py-3 text-xs text-slate-400 italic">No tasks scheduled in ' + escapeHtml(areaName) + ' matching current filters.</td></tr>';
+          return;
+        }
+
+        areaTasks.forEach(function(task) {
+          renderedRowCount++;
+          const orgObj = getOrgByCode(task.org);
+          const pendingList = getPendingForTask(task.id);
+          const hasPending = pendingList.length > 0;
+          const hasOpenPrereq = task.prerequisite && task.prerequisiteStatus !== 'CLEARED';
+
+          html += '<tr class="group bg-white hover:bg-slate-50/90 transition">';
+          // Assignment Description (Sticky Left Col 1)
+          html += '<td onclick="openTaskModal(\'' + task.id + '\')" class="sticky-col-left bg-white group-hover:bg-slate-50 px-3 py-2 border-r border-slate-200 cursor-pointer max-w-[320px]">';
+          html += '<div class="flex items-start justify-between gap-1.5">';
+          html += '<span class="font-medium text-slate-900 leading-snug">' + escapeHtml(task.description) + '</span>';
+          if (hasPending) {
+            html += '<button type="button" onclick="event.stopPropagation(); switchGcTab(\'approvals\')" class="shrink-0 px-1.5 py-0.5 rounded bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 text-[10px] font-bold" title="Trade submitted a proposed update — click to review">Pending</button>';
+          }
+          html += '</div>';
+          html += '<div class="text-[10px] text-slate-400 mt-0.5">' + formatShortDate(task.startDate) + ' &rarr; ' + formatShortDate(task.endDate) + (task.crew ? ' &bull; Crew: ' + task.crew : '') + '</div>';
+          html += '</td>';
+
+          // WBS (Col 2)
+          html += '<td onclick="openTaskModal(\'' + task.id + '\')" class="px-2 py-2 text-center font-mono text-[11px] text-slate-500 border-r border-slate-100 cursor-pointer">' + escapeHtml(task.wbs || '-') + '</td>';
+
+          // Organization Badge
+          html += '<td onclick="openTaskModal(\'' + task.id + '\')" class="px-2.5 py-2 border-r border-slate-100 cursor-pointer">';
+          html += '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold text-white shadow-sm" style="background-color:' + escapeHtml(orgObj.color) + '">';
+          html += escapeHtml(task.org);
+          html += '</span></td>';
+
+          // Responsible Foreman
+          html += '<td onclick="openTaskModal(\'' + task.id + '\')" class="px-2.5 py-2 text-slate-700 font-medium border-r border-slate-100 cursor-pointer truncate max-w-[130px]">' + escapeHtml(task.responsible || '—') + '</td>';
+
+          // % Complete
+          const pctCls = task.percentComplete >= 100
+            ? 'text-emerald-700 font-bold'
+            : task.percentComplete > 0
+              ? 'text-sky-700 font-semibold'
+              : 'text-slate-400';
+          html += '<td onclick="openTaskModal(\'' + task.id + '\')" class="px-2 py-2 text-center border-r border-slate-200 cursor-pointer ' + pctCls + '">' + task.percentComplete + '%</td>';
+
+          // Daily Timeline Cells (Calendar-Anchored!)
+          dates.forEach(function(d) {
+            const inSpan = d.iso >= task.startDate && d.iso <= task.endDate;
+            const code = (task.dailyPlan && task.dailyPlan[d.iso]) ? task.dailyPlan[d.iso] : '';
+            // Check if a pending trade update proposes shifting onto this date
+            const inProposedSpan = hasPending && d.iso >= pendingList[0].proposedStartDate && d.iso <= pendingList[0].proposedEndDate;
+
+            let bgCls = d.isToday
+              ? 'bg-red-50/40'
+              : d.isWeekend
+                ? 'bg-slate-200/65'
+                : '';
+
+            html += '<td onclick="cycleDailyCellCode(\'' + task.id + '\', \'' + d.iso + '\')" class="gantt-cell relative border-r border-slate-100 text-center align-middle cursor-pointer ' + bgCls + '" title="' + escapeHtml(task.org + ' — ' + d.shortLabel + ' (' + d.dowLabel + '): Click to toggle S / x / C') + '">';
+
+            // Proposed pending ghost outline
+            if (inProposedSpan && !inSpan) {
+              html += '<div class="absolute inset-x-0.5 top-1/2 -translate-y-1/2 h-5 rounded border-2 border-dashed border-amber-500 bg-amber-100/40 pointer-events-none"></div>';
+            }
+
+            // Official Gantt Bar + Huddle Code
+            if (inSpan || code) {
+              const isStart = d.iso === task.startDate;
+              const isEnd = d.iso === task.endDate;
+              const roundCls = (isStart && isEnd) ? 'rounded-md mx-0.5' : isStart ? 'rounded-l-md ml-0.5' : isEnd ? 'rounded-r-md mr-0.5' : '';
+
+              if (state.displayMode === 'codes') {
+                const displayCode = code || (!d.isWeekend ? 'x' : '');
+                if (displayCode) {
+                  const badgeTone = displayCode === 'C'
+                    ? 'bg-indigo-100 text-indigo-900 border border-indigo-300'
+                    : displayCode === 'S'
+                      ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                      : 'bg-slate-100 text-slate-800 border border-slate-300';
+                  html += '<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ' + badgeTone + '">' + escapeHtml(displayCode) + '</span>';
+                }
+              } else {
+                // Outbuild Bar or Hybrid Bar+Code
+                const barOpacity = (d.isWeekend && !code) ? '0.28' : '0.88';
+                html += '<div class="h-6 flex items-center justify-center text-[10px] font-bold text-white shadow-sm ' + roundCls + '" style="background-color:' + escapeHtml(orgObj.color) + '; opacity:' + barOpacity + ';">';
+                if (state.displayMode === 'hybrid') {
+                  const lbl = code || (isStart ? 'S' : isEnd && task.percentComplete === 100 ? 'C' : (!d.isWeekend ? 'x' : ''));
+                  html += escapeHtml(lbl);
+                }
+                html += '</div>';
+              }
+            }
+
+            html += '</td>';
+          });
+
+          // PPC Completed as Planned (YES / NO toggle)
+          html += '<td class="px-2 py-1.5 text-center border-r border-slate-100">';
+          if (task.completedAsPlanned === 'YES') {
+            html += '<button type="button" onclick="quickTogglePpc(\'' + task.id + '\')" class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-[10px] hover:bg-emerald-200">YES</button>';
+          } else if (task.completedAsPlanned === 'NO') {
+            html += '<button type="button" onclick="quickTogglePpc(\'' + task.id + '\')" class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300 font-bold text-[10px] hover:bg-rose-200" title="' + escapeHtml(task.varianceCategory || 'Variance') + '">NO</button>';
+          } else {
+            html += '<button type="button" onclick="quickTogglePpc(\'' + task.id + '\')" class="px-2 py-0.5 rounded bg-slate-100 text-slate-500 hover:bg-slate-200 text-[10px] font-medium">Set</button>';
+          }
+          html += '</td>';
+
+          // Prerequisite / Roadblock cell
+          html += '<td onclick="openTaskModal(\'' + task.id + '\')" class="px-3 py-2 cursor-pointer max-w-[240px]">';
+          if (task.prerequisite) {
+            const prTone = hasOpenPrereq
+              ? 'bg-rose-50 text-rose-800 border-rose-200'
+              : 'bg-emerald-50 text-emerald-800 border-emerald-200 line-through opacity-75';
+            html += '<div class="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[11px] truncate max-w-full ' + prTone + '" title="' + escapeHtml(task.prerequisite) + '">';
+            html += '<span class="w-1.5 h-1.5 rounded-full ' + (hasOpenPrereq ? 'bg-rose-500' : 'bg-emerald-500') + ' shrink-0"></span>';
+            html += '<span class="truncate">' + escapeHtml(task.prerequisite) + '</span></div>';
+          } else {
+            html += '<span class="text-slate-300 text-[11px]">Install-ready</span>';
+          }
+          html += '</td>';
+
+          html += '</tr>';
+        });
+      });
+
+      if (renderedRowCount === 0 && (q || orgFilter !== 'ALL' || statusFilter !== 'ALL')) {
+        html += '<tr><td colspan="' + (7 + dates.length) + '" class="px-6 py-10 text-center text-sm text-slate-500">No official tasks match your active search or filter criteria.</td></tr>';
+      }
+
+      html += '</tbody></table>';
+      document.getElementById('lookahead-grid-container').innerHTML = html;
+    }
+
+    // Direct interactive cell click in GC Official View
+    function cycleDailyCellCode(taskId, isoDate) {
+      const task = getTaskById(taskId);
+      if (!task) return;
+      if (!task.dailyPlan) task.dailyPlan = {};
+      const cur = task.dailyPlan[isoDate] || '';
+      const order = ['', 'S', 'x', 'C'];
+      const nextIdx = (order.indexOf(cur) + 1) % order.length;
+      const nextCode = order[nextIdx];
+      if (nextCode === '') {
+        delete task.dailyPlan[isoDate];
+      } else {
+        task.dailyPlan[isoDate] = nextCode;
+        // Expand task startDate / endDate automatically if clicked outside current span
+        if (isoDate < task.startDate) task.startDate = isoDate;
+        if (isoDate > task.endDate) task.endDate = isoDate;
+        if (nextCode === 'C') task.percentComplete = 100;
+      }
+      saveState();
+      renderLookaheadView();
+    }
+
+    function quickTogglePpc(taskId) {
+      const task = getTaskById(taskId);
+      if (!task) return;
+      if (task.completedAsPlanned === null) {
+        task.completedAsPlanned = 'YES';
+        task.varianceCategory = '';
+      } else if (task.completedAsPlanned === 'YES') {
+        task.completedAsPlanned = 'NO';
+        if (!task.varianceCategory) task.varianceCategory = VARIANCE_CATEGORIES[0];
+      } else {
+        task.completedAsPlanned = null;
+        task.varianceCategory = '';
+      }
+      saveState();
+      renderAll();
+    }
+
+    // =========================================================================
+    // TAB 2: MCGOUGH APPROVAL QUEUE & GOVERNANCE
+    // =========================================================================
+    function setActiveApprover(approverId) {
+      state.activeApproverId = approverId;
+      saveState();
+      renderAll();
+      const app = getActiveApprover();
+      showToast('Active McGough approver set to ' + app.name, 'info');
+    }
+
+    function clearDemoSubmissions() {
+      state.pendingSubmissions = state.pendingSubmissions.filter(function(s) { return !s.isDemo; });
+      saveState();
+      renderAll();
+      showToast('Cleared demo staging items.', 'info');
+    }
+
+    function renderApprovalsView() {
+      populateDropdownOptions();
+
+      // 1. Render Weekly Trade Check-In Readiness Strip
+      const activeOrgsMap = {};
+      state.officialTasks.forEach(function(t) { activeOrgsMap[t.org] = true; });
+      const activeOrgCodes = Object.keys(activeOrgsMap).sort();
+
+      const submittedOrgSet = {};
+      state.pendingSubmissions.forEach(function(s) { submittedOrgSet[s.org] = 'PENDING'; });
+      state.auditLog.forEach(function(a) {
+        if (a.decision === 'APPROVED') submittedOrgSet[a.org] = 'APPROVED';
+      });
+
+      const stripEl = document.getElementById('submission-tracker-strip');
+      stripEl.innerHTML = activeOrgCodes.map(function(orgCode) {
+        const st = submittedOrgSet[orgCode];
+        const badgeCls = st === 'APPROVED'
+          ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+          : st === 'PENDING'
+            ? 'bg-amber-50 text-amber-900 border-amber-300'
+            : 'bg-slate-50 text-slate-600 border-slate-200';
+        const dotCls = st === 'APPROVED' ? 'bg-emerald-500' : st === 'PENDING' ? 'bg-amber-500' : 'bg-slate-300';
+        const statusWord = st === 'APPROVED' ? 'Merged' : st === 'PENDING' ? 'In Queue' : 'Awaiting Link';
+        return '<button type="button" onclick="openPortalForContractor(\'' + escapeHtml(orgCode) + '\')" class="px-2.5 py-1 rounded-lg border text-xs font-medium inline-flex items-center gap-1.5 hover:shadow-sm transition ' + badgeCls + '" title="Click to open Trade Portal as ' + escapeHtml(orgCode) + '">' +
+          '<span class="w-2 h-2 rounded-full ' + dotCls + '"></span>' +
+          '<span class="font-semibold">' + escapeHtml(orgCode) + '</span>' +
+          '<span class="text-[10px] opacity-75">(' + statusWord + ')</span>' +
+        '</button>';
+      }).join('');
+
+      // 2. Filter & Render Pending Submission Diff Cards
+      const orgF = document.getElementById('queue-filter-org').value || 'ALL';
+      const typeF = document.getElementById('queue-filter-type').value || 'ALL';
+
+      const list = state.pendingSubmissions.filter(function(s) {
+        if (orgF !== 'ALL' && s.org !== orgF) return false;
+        if (typeF !== 'ALL' && s.type !== typeF) return false;
+        return true;
+      });
+
+      const qContainer = document.getElementById('approval-queue-container');
+      if (list.length === 0) {
+        qContainer.innerHTML = '<div class="bg-white rounded-xl border border-slate-200 p-8 text-center">' +
+          '<div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3">' +
+            '<svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>' +
+          '</div>' +
+          '<h3 class="text-sm font-bold text-slate-900">Approval Queue Clear</h3>' +
+          '<p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">No unapproved trade updates match the current filter. Share the Trade Portal link or switch to the Trade Partner Portal to test submitting updates.</p>' +
+          '<div class="mt-4 flex justify-center gap-2">' +
+            '<button type="button" onclick="switchPortalMode(\'trade\')" class="px-3.5 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold">Open Trade Partner Portal</button>' +
+            '<button type="button" onclick="openShareLinkModal()" class="px-3.5 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold">Send Link to Trades</button>' +
+          '</div>' +
+        '</div>';
+      } else {
+        qContainer.innerHTML = list.map(function(sub) {
+          const orgObj = getOrgByCode(sub.org);
+          const orig = sub.taskId ? getTaskById(sub.taskId) : null;
+          const isNew = sub.type === 'NEW_TASK' || !orig;
+
+          let shiftBadge = '';
+          if (!isNew && orig) {
+            const endDelta = diffDaysIso(orig.endDate, sub.proposedEndDate);
+            if (endDelta > 0) {
+              shiftBadge = '<span class="px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-semibold">+' + endDelta + 'd End Slip</span>';
+            } else if (endDelta < 0) {
+              shiftBadge = '<span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold">' + endDelta + 'd Pulled In</span>';
+            } else {
+              shiftBadge = '<span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-medium">Dates Unchanged</span>';
+            }
+          }
+
+          return '<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">' +
+            '<div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">' +
+              '<div class="flex items-center gap-2 flex-wrap">' +
+                '<span class="px-2.5 py-0.5 rounded-md text-xs font-bold text-white" style="background-color:' + escapeHtml(orgObj.color) + '">' + escapeHtml(sub.org) + '</span>' +
+                '<span class="text-xs font-semibold text-slate-800">Submitted by ' + escapeHtml(sub.submittedBy || 'Trade Foreman') + '</span>' +
+                '<span class="text-[11px] text-slate-400">&bull; ' + escapeHtml(sub.submittedAt) + '</span>' +
+                (isNew
+                  ? '<span class="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-300 text-[10px] font-bold uppercase">New Task Proposal</span>'
+                  : '<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold uppercase">Task Update</span>') +
+                (sub.isDemo ? '<span class="px-2 py-0.5 rounded bg-slate-200 text-slate-600 text-[10px] font-medium">Sample Staging</span>' : '') +
+                shiftBadge +
+              '</div>' +
+              '<div class="text-xs font-semibold text-slate-600">' + escapeHtml(sub.area) + ' &bull; WBS ' + escapeHtml(sub.wbs || '-') + '</div>' +
+            '</div>' +
+
+            '<div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">' +
+              // Left: Official Locked Version
+              '<div class="p-3 rounded-lg bg-slate-50 border border-slate-200">' +
+                '<div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Current Official WWP (Locked)</div>' +
+                (isNew
+                  ? '<div class="text-xs text-slate-500 italic py-3">Not currently on Official WWP — proposed as a new lookahead assignment.</div>'
+                  : '<div class="text-xs font-semibold text-slate-900">' + escapeHtml(orig.description) + '</div>' +
+                    '<div class="mt-2 grid grid-cols-2 gap-2 text-xs">' +
+                      '<div><span class="text-slate-400">Dates:</span> <strong class="text-slate-700">' + formatShortDate(orig.startDate) + ' – ' + formatShortDate(orig.endDate) + '</strong></div>' +
+                      '<div><span class="text-slate-400">Progress:</span> <strong class="text-slate-700">' + orig.percentComplete + '% (Crew ' + (orig.crew || '—') + ')</strong></div>' +
+                      '<div class="col-span-2"><span class="text-slate-400">Prerequisite:</span> <span class="text-slate-700">' + escapeHtml(orig.prerequisite || 'None') + '</span></div>' +
+                    '</div>') +
+              '</div>' +
+
+              // Right: Proposed Trade Submission
+              '<div class="p-3 rounded-lg bg-amber-50/50 border border-amber-200">' +
+                '<div class="text-[10px] font-bold uppercase tracking-wider text-amber-800 mb-1">Trade Proposed Update</div>' +
+                '<div class="text-xs font-semibold text-slate-900">' + escapeHtml(sub.description) + '</div>' +
+                '<div class="mt-2 grid grid-cols-2 gap-2 text-xs">' +
+                  '<div><span class="text-slate-500">Proposed Dates:</span> <strong class="text-slate-900">' + formatShortDate(sub.proposedStartDate) + ' – ' + formatShortDate(sub.proposedEndDate) + '</strong></div>' +
+                  '<div><span class="text-slate-500">Progress:</span> <strong class="text-slate-900">' + sub.proposedPercent + '% (Crew ' + (sub.proposedCrew || 4) + ')</strong></div>' +
+                  '<div><span class="text-slate-500">PPC Planned?:</span> <strong class="text-slate-900">' + escapeHtml(sub.proposedCompletedAsPlanned || 'Pending') + (sub.proposedVarianceCategory ? ' (' + escapeHtml(sub.proposedVarianceCategory) + ')' : '') + '</strong></div>' +
+                  '<div><span class="text-slate-500">Prerequisite:</span> <span class="text-rose-800 font-medium">' + escapeHtml(sub.proposedPrerequisite || 'None') + '</span></div>' +
+                '</div>' +
+                (sub.comment ? '<div class="mt-2 pt-2 border-t border-amber-200/70 text-xs text-slate-700"><strong>Foreman Note:</strong> "' + escapeHtml(sub.comment) + '"</div>' : '') +
+              '</div>' +
+            '</div>' +
+
+            '<div class="px-4 py-2.5 bg-white border-t border-slate-100 flex flex-wrap items-center justify-end gap-2">' +
+              '<button type="button" onclick="rejectSubmissionModal(\'' + sub.subId + '\')" class="px-3 py-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-700 text-xs font-semibold transition">Return / Reject</button>' +
+              '<button type="button" onclick="openEditBeforeApproveModal(\'' + sub.subId + '\')" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition">Edit &amp; Approve</button>' +
+              '<button type="button" onclick="approveSubmission(\'' + sub.subId + '\')" class="px-4 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold transition shadow-sm">Approve &amp; Merge to Official WWP</button>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+      }
+
+      // 3. Render Audit Trail
+      const auditEl = document.getElementById('audit-log-container');
+      if (state.auditLog.length === 0) {
+        auditEl.innerHTML = '<p class="text-xs text-slate-400 italic">No submissions approved or returned in this session yet. Actions taken by McGough Approvers are recorded here with timestamps.</p>';
+      } else {
+        auditEl.innerHTML = '<div class="divide-y divide-slate-100">' + state.auditLog.map(function(entry) {
+          const badge = entry.decision === 'APPROVED'
+            ? '<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">MERGED</span>'
+            : '<span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 text-[10px] font-bold">RETURNED</span>';
+          return '<div class="py-2 flex flex-wrap items-center justify-between gap-2 text-xs">' +
+            '<div class="flex items-center gap-2 flex-wrap">' +
+              badge +
+              '<strong class="text-slate-900">' + escapeHtml(entry.org) + '</strong>' +
+              '<span class="text-slate-600">' + escapeHtml(entry.description) + ' (' + escapeHtml(entry.area) + ')</span>' +
+              (entry.note ? '<span class="text-slate-500 italic">— "' + escapeHtml(entry.note) + '"</span>' : '') +
+            '</div>' +
+            '<div class="text-[11px] text-slate-500">By <strong>' + escapeHtml(entry.approverName) + '</strong> &bull; ' + escapeHtml(entry.timestamp) + '</div>' +
+          '</div>';
+        }).join('') + '</div>';
+      }
+    }
+
+    function mergeSubmissionIntoOfficial(sub) {
+      const approver = getActiveApprover();
+      if (sub.type === 'NEW_TASK' || !sub.taskId || !getTaskById(sub.taskId)) {
+        const newId = 't-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+        state.officialTasks.push({
+          id: newId,
+          wbs: sub.wbs || '-',
+          area: sub.area || 'Admin',
+          description: sub.description,
+          org: sub.org,
+          responsible: sub.submittedBy || getOrgByCode(sub.org).defaultForeman || '',
+          crew: Number(sub.proposedCrew) || 4,
+          startDate: sub.proposedStartDate,
+          endDate: sub.proposedEndDate,
+          percentComplete: Number(sub.proposedPercent) || 0,
+          dailyPlan: buildPlanRange(sub.proposedStartDate, sub.proposedEndDate, {
+            markStart: true,
+            markComplete: Number(sub.proposedPercent) >= 100
+          }),
+          completedAsPlanned: sub.proposedCompletedAsPlanned || null,
+          varianceCategory: sub.proposedVarianceCategory || '',
+          prerequisite: sub.proposedPrerequisite || '',
+          prerequisiteStatus: sub.proposedPrerequisite ? 'OPEN' : 'CLEARED'
+        });
+      } else {
+        const orig = getTaskById(sub.taskId);
+        orig.description = sub.description || orig.description;
+        orig.wbs = sub.wbs || orig.wbs;
+        orig.area = sub.area || orig.area;
+        orig.startDate = sub.proposedStartDate;
+        orig.endDate = sub.proposedEndDate;
+        orig.percentComplete = Number(sub.proposedPercent);
+        orig.crew = Number(sub.proposedCrew) || orig.crew;
+        orig.dailyPlan = buildPlanRange(sub.proposedStartDate, sub.proposedEndDate, {
+          markComplete: Number(sub.proposedPercent) >= 100
+        });
+        if (sub.proposedCompletedAsPlanned) {
+          orig.completedAsPlanned = sub.proposedCompletedAsPlanned;
+          orig.varianceCategory = sub.proposedCompletedAsPlanned === 'NO' ? (sub.proposedVarianceCategory || VARIANCE_CATEGORIES[0]) : '';
+        }
+        orig.prerequisite = sub.proposedPrerequisite || '';
+        orig.prerequisiteStatus = sub.proposedPrerequisite ? 'OPEN' : 'CLEARED';
+      }
+
+      state.auditLog.unshift({
+        decision: 'APPROVED',
+        org: sub.org,
+        area: sub.area,
+        description: sub.description,
+        approverName: approver.name + ' (' + approver.role + ')',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        note: sub.comment || ''
+      });
+    }
+
+    function approveSubmission(subId) {
+      const idx = state.pendingSubmissions.findIndex(function(s) { return s.subId === subId; });
+      if (idx === -1) return;
+      const sub = state.pendingSubmissions[idx];
+      mergeSubmissionIntoOfficial(sub);
+      state.pendingSubmissions.splice(idx, 1);
+      saveState();
+      renderAll();
+      showToast('Approved & merged ' + sub.org + ' update into Official WWP!', 'success');
+    }
+
+    function approveAllVisibleSubmissions() {
+      const orgF = document.getElementById('queue-filter-org').value || 'ALL';
+      const typeF = document.getElementById('queue-filter-type').value || 'ALL';
+      const toApprove = state.pendingSubmissions.filter(function(s) {
+        if (orgF !== 'ALL' && s.org !== orgF) return false;
+        if (typeF !== 'ALL' && s.type !== typeF) return false;
+        return true;
+      });
+      if (toApprove.length === 0) {
+        showToast('No pending submissions to approve.', 'info');
+        return;
+      }
+      toApprove.forEach(function(sub) {
+        mergeSubmissionIntoOfficial(sub);
+      });
+      const approvedIds = toApprove.map(function(s) { return s.subId; });
+      state.pendingSubmissions = state.pendingSubmissions.filter(function(s) {
+        return approvedIds.indexOf(s.subId) === -1;
+      });
+      saveState();
+      renderAll();
+      showToast('Merged ' + toApprove.length + ' trade submission(s) into Official WWP!', 'success');
+    }
+
+    function rejectSubmissionModal(subId) {
+      const sub = state.pendingSubmissions.find(function(s) { return s.subId === subId; });
+      if (!sub) return;
+      openModal(
+        '<div class="p-5">' +
+          '<h3 class="text-base font-bold text-slate-900">Return Submission to ' + escapeHtml(sub.org) + '</h3>' +
+          '<p class="text-xs text-slate-500 mt-1">Returning keeps the Official WWP unchanged and records review notes for ' + escapeHtml(sub.submittedBy || sub.org) + '.</p>' +
+          '<div class="mt-4">' +
+            '<label for="reject-reason-input" class="block text-xs font-semibold text-slate-700 mb-1">McGough Reviewer Note / Reason</label>' +
+            '<textarea id="reject-reason-input" rows="3" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs" placeholder="e.g., Cannot shift past 11/24 due to Data Hall turnover milestone — please add crew or coordinate Saturday shift."></textarea>' +
+          '</div>' +
+          '<div class="mt-4 flex justify-end gap-2">' +
+            '<button type="button" onclick="closeModal()" class="px-3.5 py-2 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700">Cancel</button>' +
+            '<button type="button" onclick="confirmRejectSubmission(\'' + sub.subId + '\')" class="px-4 py-2 rounded-lg bg-rose-700 hover:bg-rose-600 text-white text-xs font-semibold">Confirm Return</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    function confirmRejectSubmission(subId) {
+      const idx = state.pendingSubmissions.findIndex(function(s) { return s.subId === subId; });
+      if (idx === -1) return;
+      const sub = state.pendingSubmissions[idx];
+      const reasonEl = document.getElementById('reject-reason-input');
+      const note = reasonEl ? reasonEl.value.trim() : '';
+      const approver = getActiveApprover();
+
+      state.auditLog.unshift({
+        decision: 'RETURNED',
+        org: sub.org,
+        area: sub.area,
+        description: sub.description,
+        approverName: approver.name + ' (' + approver.role + ')',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        note: note || 'Returned for schedule revision'
+      });
+
+      state.pendingSubmissions.splice(idx, 1);
+      closeModal();
+      saveState();
+      renderAll();
+      showToast('Returned submission to ' + sub.org + ' without altering Official WWP.', 'info');
+    }
+
+    function openEditBeforeApproveModal(subId) {
+      const sub = state.pendingSubmissions.find(function(s) { return s.subId === subId; });
+      if (!sub) return;
+      const areaOpts = state.areas.map(function(a) {
+        return '<option value="' + escapeHtml(a) + '"' + (a === sub.area ? ' selected' : '') + '>' + escapeHtml(a) + '</option>';
+      }).join('');
+
+      openModal(
+        '<div class="p-5">' +
+          '<div class="flex items-center justify-between border-b border-slate-100 pb-3">' +
+            '<div>' +
+              '<h3 class="text-base font-bold text-slate-900">Adjust &amp; Approve Submission (' + escapeHtml(sub.org) + ')</h3>' +
+              '<p class="text-xs text-slate-500">Modify proposed dates, scope, or prerequisites before merging into the Official WWP.</p>' +
+            '</div>' +
+          '</div>' +
+          '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 text-xs">' +
+            '<div><label class="block font-semibold text-slate-700 mb-1">Area</label><select id="eba-area" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300">' + areaOpts + '</select></div>' +
+            '<div><label class="block font-semibold text-slate-700 mb-1">WBS #</label><input id="eba-wbs" type="text" value="' + escapeHtml(sub.wbs) + '" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300" /></div>' +
+            '<div class="sm:col-span-2"><label class="block font-semibold text-slate-700 mb-1">Assignment Description</label><input id="eba-desc" type="text" value="' + escapeHtml(sub.description) + '" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300" /></div>' +
+            '<div><label class="block font-semibold text-slate-700 mb-1">Approved Start Date</label><input id="eba-start" type="date" value="' + escapeHtml(sub.proposedStartDate) + '" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300" /></div>' +
+            '<div><label class="block font-semibold text-slate-700 mb-1">Approved End Date</label><input id="eba-end" type="date" value="' + escapeHtml(sub.proposedEndDate) + '" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300" /></div>' +
+            '<div><label class="block font-semibold text-slate-700 mb-1">% Complete</label><input id="eba-pct" type="number" min="0" max="100" value="' + Number(sub.proposedPercent) + '" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300" /></div>' +
+            '<div><label class="block font-semibold text-slate-700 mb-1">Crew Size</label><input id="eba-crew" type="number" min="1" max="99" value="' + Number(sub.proposedCrew || 4) + '" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300" /></div>' +
+            '<div class="sm:col-span-2"><label class="block font-semibold text-slate-700 mb-1">Prerequisite / Roadblock</label><input id="eba-prereq" type="text" value="' + escapeHtml(sub.proposedPrerequisite || '') + '" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300" /></div>' +
+          '</div>' +
+          '<div class="mt-5 flex justify-end gap-2">' +
+            '<button type="button" onclick="closeModal()" class="px-3.5 py-2 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700">Cancel</button>' +
+            '<button type="button" onclick="saveEditAndApprove(\'' + sub.subId + '\')" class="px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold">Merge Adjusted Update</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    function saveEditAndApprove(subId) {
+      const sub = state.pendingSubmissions.find(function(s) { return s.subId === subId; });
+      if (!sub) return;
+      const sDate = document.getElementById('eba-start').value;
+      const eDate = document.getElementById('eba-end').value;
+      if (sDate && eDate && eDate < sDate) {
+        showToast('End date cannot be earlier than start date.', 'error');
+        return;
+      }
+      sub.area = document.getElementById('eba-area').value;
+      sub.wbs = document.getElementById('eba-wbs').value.trim() || '-';
+      sub.description = document.getElementById('eba-desc').value.trim() || sub.description;
+      sub.proposedStartDate = sDate || sub.proposedStartDate;
+      sub.proposedEndDate = eDate || sub.proposedEndDate;
+      sub.proposedPercent = Math.min(100, Math.max(0, Number(document.getElementById('eba-pct').value) || 0));
+      sub.proposedCrew = Math.max(1, Number(document.getElementById('eba-crew').value) || 4);
+      sub.proposedPrerequisite = document.getElementById('eba-prereq').value.trim();
+      closeModal();
+      approveSubmission(subId);
+    }
+
+    // =========================================================================
+    // TAB 3: ROADBLOCKS & MAKE-READY PREREQUISITES BOARD
+    // =========================================================================
+    function renderRoadblocksView() {
+      populateDropdownOptions();
+      const statusF = document.getElementById('rb-filter-status').value || 'ALL';
+      const areaF = document.getElementById('rb-filter-area').value || 'ALL';
+
+      const prereqTasks = state.officialTasks.filter(function(t) {
+        if (!t.prerequisite) return false;
+        const st = t.prerequisiteStatus || 'OPEN';
+        if (statusF !== 'ALL' && st !== statusF) return false;
+        if (areaF !== 'ALL' && t.area !== areaF) return false;
+        return true;
+      });
+
+      const columns = [
+        { key: 'OPEN', title: 'Open Roadblocks (Needs Action)', badgeCls: 'bg-rose-100 text-rose-800', borderCls: 'border-rose-200' },
+        { key: 'COORDINATED', title: 'Coordinated / In Handoff', badgeCls: 'bg-amber-100 text-amber-800', borderCls: 'border-amber-200' },
+        { key: 'CLEARED', title: 'Cleared (Install-Ready)', badgeCls: 'bg-emerald-100 text-emerald-800', borderCls: 'border-emerald-200' }
+      ];
+
+      const board = document.getElementById('roadblocks-board-container');
+      board.innerHTML = columns.map(function(col) {
+        const items = prereqTasks.filter(function(t) {
+          return (t.prerequisiteStatus || 'OPEN') === col.key;
+        });
+
+        return '<div class="bg-slate-100/80 rounded-xl border border-slate-200 p-3 flex flex-col gap-2.5">' +
+          '<div class="flex items-center justify-between px-1">' +
+            '<h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">' + escapeHtml(col.title) + '</h3>' +
+            '<span class="px-2 py-0.5 rounded-full text-[11px] font-bold ' + col.badgeCls + '">' + items.length + '</span>' +
+          '</div>' +
+          (items.length === 0
+            ? '<div class="bg-white/70 rounded-lg border border-dashed border-slate-300 p-6 text-center text-xs text-slate-400">No items in this column</div>'
+            : items.map(function(t) {
+                const orgObj = getOrgByCode(t.org);
+                return '<div class="bg-white rounded-xl border ' + col.borderCls + ' p-3 shadow-sm flex flex-col gap-2">' +
+                  '<div class="flex items-center justify-between gap-2">' +
+                    '<span class="px-2 py-0.5 rounded text-[10px] font-bold text-white" style="background-color:' + escapeHtml(orgObj.color) + '">' + escapeHtml(t.org) + '</span>' +
+                    '<span class="text-[11px] font-semibold text-slate-500">' + escapeHtml(t.area) + ' &bull; Start ' + formatShortDate(t.startDate) + '</span>' +
+                  '</div>' +
+                  '<div class="text-xs font-bold text-rose-900 bg-rose-50/70 px-2.5 py-1.5 rounded-lg border border-rose-100">' + escapeHtml(t.prerequisite) + '</div>' +
+                  '<div class="text-xs text-slate-700"><span class="text-slate-400">Impacted Task:</span> ' + escapeHtml(t.description) + ' (' + escapeHtml(t.responsible || 'Foreman') + ')</div>' +
+                  '<div class="pt-2 border-t border-slate-100 flex items-center justify-between gap-1">' +
+                    (col.key !== 'OPEN' ? '<button type="button" onclick="setTaskPrereqStatus(\'' + t.id + '\', \'OPEN\')" class="px-2 py-1 rounded text-[11px] font-medium text-rose-700 hover:bg-rose-50">Reopen</button>' : '<span></span>') +
+                    '<div class="flex items-center gap-1">' +
+                      (col.key !== 'COORDINATED' ? '<button type="button" onclick="setTaskPrereqStatus(\'' + t.id + '\', \'COORDINATED\')" class="px-2.5 py-1 rounded bg-amber-50 hover:bg-amber-100 text-amber-900 text-[11px] font-semibold border border-amber-200">Mark Coordinated</button>' : '') +
+                      (col.key !== 'CLEARED' ? '<button type="button" onclick="setTaskPrereqStatus(\'' + t.id + '\', \'CLEARED\')" class="px-2.5 py-1 rounded bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-semibold">Clear Roadblock</button>' : '') +
+                    '</div>' +
+                  '</div>' +
+                '</div>';
+              }).join('')) +
+        '</div>';
+      }).join('');
+    }
+
+    function setTaskPrereqStatus(taskId, nextStatus) {
+      const t = getTaskById(taskId);
+      if (!t) return;
+      t.prerequisiteStatus = nextStatus;
+      saveState();
+      renderAll();
+      showToast('Updated roadblock status to ' + nextStatus, 'info');
+    }
+
+    function openAddRoadblockModal() {
+      const taskOpts = state.officialTasks.map(function(t) {
+        return '<option value="' + t.id + '">[' + escapeHtml(t.area) + ' — ' + escapeHtml(t.org) + '] ' + escapeHtml(t.description) + '</option>';
+      }).join('');
+
+      openModal(
+        '<div class="p-5">' +
+          '<h3 class="text-base font-bold text-slate-900">Flag Prerequisite / Make-Ready Roadblock</h3>' +
+          '<p class="text-xs text-slate-500 mt-1">Attach a required prerequisite from another trade, inspection, or material delivery to an official task.</p>' +
+          '<div class="mt-4 flex flex-col gap-3 text-xs">' +
+            '<div><label class="block font-semibold text-slate-700 mb-1">Select Impacted Official Task</label><select id="rb-modal-task" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white">' + taskOpts + '</select></div>' +
+            '<div><label class="block font-semibold text-slate-700 mb-1">Required Prerequisite Work From Others *</label><input id="rb-modal-text" type="text" placeholder="e.g., Overhead hydro-test signoff needed prior to ceiling grid closure" class="w-full px-3 py-2 rounded-lg border border-slate-300" /></div>' +
+          '</div>' +
+          '<div class="mt-5 flex justify-end gap-2">' +
+            '<button type="button" onclick="closeModal()" class="px-3.5 py-2 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700">Cancel</button>' +
+            '<button type="button" onclick="saveRoadblockFromModal()" class="px-4 py-2 rounded-lg bg-rose-700 hover:bg-rose-600 text-white text-xs font-semibold">Save Roadblock</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    function saveRoadblockFromModal() {
+      const taskId = document.getElementById('rb-modal-task').value;
+      const text = document.getElementById('rb-modal-text').value.trim();
+      if (!text) {
+        showToast('Please enter a prerequisite description.', 'error');
+        return;
+      }
+      const t = getTaskById(taskId);
+      if (t) {
+        t.prerequisite = text;
+        t.prerequisiteStatus = 'OPEN';
+      }
+      closeModal();
+      saveState();
+      renderAll();
+      showToast('Roadblock flagged on ' + (t ? t.org : 'task'), 'success');
+    }
+
+    // =========================================================================
+    // TAB 4: PPC ANALYTICS & 27 CONTRACTORS ROSTER
+    // =========================================================================
+    function renderAnalyticsView() {
+      const ppc = computePpcStats();
+      const totalTasks = state.officialTasks.length;
+      const constraintFree = state.officialTasks.filter(function(t) {
+        return !t.prerequisite || t.prerequisiteStatus === 'CLEARED';
+      }).length;
+      const readyPct = totalTasks > 0 ? Math.round((constraintFree / totalTasks) * 100) : 100;
+      const totalCrew = state.officialTasks.reduce(function(acc, t) { return acc + (Number(t.crew) || 0); }, 0);
+
+      document.getElementById('analytics-kpi-container').innerHTML = [
+        { label: 'Percent Plan Complete (PPC)', val: ppc.pct + '%', sub: ppc.yesCount + ' completed as planned / ' + ppc.noCount + ' variance' },
+        { label: 'Make-Ready Install Health', val: readyPct + '%', sub: constraintFree + ' of ' + totalTasks + ' tasks constraint-free' },
+        { label: 'Registered Contractors (JOBDATA)', val: String(state.organizations.length), sub: 'With dedicated WWP portal links' },
+        { label: 'Planned Field Manpower', val: totalCrew + ' crew', sub: 'Summed across active task assignments' }
+      ].map(function(k) {
+        return '<div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">' +
+          '<div class="text-xs font-semibold text-slate-500">' + escapeHtml(k.label) + '</div>' +
+          '<div class="text-2xl font-bold text-slate-900 mt-1">' + escapeHtml(k.val) + '</div>' +
+          '<div class="text-xs text-slate-400 mt-0.5">' + escapeHtml(k.sub) + '</div>' +
+        '</div>';
+      }).join('');
+
+      // Render Interactive PPC Closeout List
+      const ppcListEl = document.getElementById('ppc-eval-list');
+      ppcListEl.innerHTML = state.officialTasks.slice(0, 20).map(function(t) {
+        const orgObj = getOrgByCode(t.org);
+        const varOpts = VARIANCE_CATEGORIES.map(function(vc) {
+          return '<option value="' + escapeHtml(vc) + '"' + (t.varianceCategory === vc ? ' selected' : '') + '>' + escapeHtml(vc) + '</option>';
+        }).join('');
+
+        return '<div class="py-2.5 px-2 flex flex-wrap items-center justify-between gap-2 text-xs hover:bg-slate-50">' +
+          '<div class="flex items-center gap-2 min-w-0">' +
+            '<span class="px-2 py-0.5 rounded text-[10px] font-bold text-white shrink-0" style="background-color:' + escapeHtml(orgObj.color) + '">' + escapeHtml(t.org) + '</span>' +
+            '<span class="font-medium text-slate-600 shrink-0">[' + escapeHtml(t.area) + ']</span>' +
+            '<span class="font-semibold text-slate-900 truncate">' + escapeHtml(t.description) + '</span>' +
+          '</div>' +
+          '<div class="flex items-center gap-2">' +
+            (t.completedAsPlanned === 'NO'
+              ? '<select onchange="setTaskVariance(\'' + t.id + '\', this.value)" class="px-2 py-1 rounded border border-rose-300 bg-rose-50 text-rose-900 text-[11px]">' + varOpts + '</select>'
+              : '') +
+            '<button type="button" onclick="setTaskPpcExplicit(\'' + t.id + '\', \'YES\')" class="px-2.5 py-1 rounded font-bold text-[11px] transition ' + (t.completedAsPlanned === 'YES' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-emerald-50') + '">YES</button>' +
+            '<button type="button" onclick="setTaskPpcExplicit(\'' + t.id + '\', \'NO\')" class="px-2.5 py-1 rounded font-bold text-[11px] transition ' + (t.completedAsPlanned === 'NO' ? 'bg-rose-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-rose-50') + '">NO</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      renderContractorsRoster();
+      renderCharts();
+    }
+
+    function setTaskPpcExplicit(taskId, val) {
+      const t = getTaskById(taskId);
+      if (!t) return;
+      t.completedAsPlanned = val;
+      if (val === 'NO' && !t.varianceCategory) t.varianceCategory = VARIANCE_CATEGORIES[0];
+      if (val === 'YES') t.varianceCategory = '';
+      saveState();
+      renderAnalyticsView();
+    }
+
+    function setTaskVariance(taskId, category) {
+      const t = getTaskById(taskId);
+      if (!t) return;
+      t.varianceCategory = category;
+      saveState();
+      renderCharts();
+    }
+
+    function renderContractorsRoster() {
+      const q = (document.getElementById('contractor-search').value || '').trim().toLowerCase();
+      const filtered = state.organizations.filter(function(o) {
+        if (!q) return true;
+        return (o.code + ' ' + o.fullName + ' ' + o.defaultForeman).toLowerCase().indexOf(q) !== -1;
+      });
+
+      document.getElementById('contractors-roster-container').innerHTML = filtered.map(function(o) {
+        const count = state.officialTasks.filter(function(t) { return t.org === o.code; }).length;
+        return '<div class="p-3 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-white transition flex flex-col justify-between gap-2">' +
+          '<div class="flex items-start justify-between gap-2">' +
+            '<div class="flex items-center gap-2">' +
+              '<span class="w-3.5 h-3.5 rounded-full shrink-0" style="background-color:' + escapeHtml(o.color) + '"></span>' +
+              '<div>' +
+                '<div class="text-xs font-bold text-slate-900">' + escapeHtml(o.code) + '</div>' +
+                '<div class="text-[11px] text-slate-500">' + escapeHtml(o.fullName) + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white border border-slate-200 text-slate-700">' + count + ' task' + (count === 1 ? '' : 's') + '</span>' +
+          '</div>' +
+          '<div class="flex items-center justify-between pt-2 border-t border-slate-200/70 text-[11px]">' +
+            '<span class="text-slate-500 truncate">Lead: <strong>' + escapeHtml(o.defaultForeman || 'Assign in Portal') + '</strong></span>' +
+            (o.isGC
+              ? '<span class="text-red-700 font-semibold">GC Approver</span>'
+              : '<div class="flex items-center gap-1.5">' +
+                  '<button type="button" onclick="copyContractorPortalLink(\'' + escapeHtml(o.code) + '\')" class="text-slate-600 hover:text-slate-900 font-semibold underline">Copy Link</button>' +
+                  '<button type="button" onclick="openPortalForContractor(\'' + escapeHtml(o.code) + '\')" class="text-sky-700 hover:text-sky-900 font-semibold">Portal &rarr;</button>' +
+                '</div>') +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function renderCharts() {
+      if (typeof Chart === 'undefined') return;
+
+      // 1. Area Tasks Chart
+      const areaCounts = state.areas.map(function(a) {
+        return state.officialTasks.filter(function(t) { return t.area === a; }).length;
+      });
+      const ctxArea = document.getElementById('chart-area-tasks');
+      if (ctxArea) {
+        if (chartInstances.area) chartInstances.area.destroy();
+        chartInstances.area = new Chart(ctxArea, {
+          type: 'bar',
+          data: {
+            labels: state.areas,
+            datasets: [{
+              label: 'Scheduled Tasks',
+              data: areaCounts,
+              backgroundColor: '#0f172a',
+              borderRadius: 6
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+          }
+        });
+      }
+
+      // 2. Trade Workload Chart
+      const orgMap = {};
+      state.officialTasks.forEach(function(t) {
+        orgMap[t.org] = (orgMap[t.org] || 0) + 1;
+      });
+      const sortedOrgs = Object.keys(orgMap).sort(function(a, b) { return orgMap[b] - orgMap[a]; }).slice(0, 8);
+      const ctxTrade = document.getElementById('chart-trade-workload');
+      if (ctxTrade) {
+        if (chartInstances.trade) chartInstances.trade.destroy();
+        chartInstances.trade = new Chart(ctxTrade, {
+          type: 'bar',
+          data: {
+            labels: sortedOrgs,
+            datasets: [{
+              label: 'Active Assignments',
+              data: sortedOrgs.map(function(c) { return orgMap[c]; }),
+              backgroundColor: sortedOrgs.map(function(c) { return getOrgByCode(c).color; }),
+              borderRadius: 6
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+          }
+        });
+      }
+
+      // 3. Variance & Prerequisite Categories Chart
+      const catCounts = {
+        'Prerequisite / Handoff': 0,
+        'Material / Delivery': 0,
+        'Area / CRAH Access': 0,
+        'Testing / Inspection': 0
+      };
+      state.officialTasks.forEach(function(t) {
+        if (t.prerequisite && t.prerequisiteStatus !== 'CLEARED') {
+          const low = t.prerequisite.toLowerCase();
+          if (low.indexOf('delivery') !== -1 || low.indexOf('blanket') !== -1) catCounts['Material / Delivery']++;
+          else if (low.indexOf('crah') !== -1 || low.indexOf('wrigley') !== -1) catCounts['Area / CRAH Access']++;
+          else if (low.indexOf('test') !== -1 || low.indexOf('flush') !== -1) catCounts['Testing / Inspection']++;
+          else catCounts['Prerequisite / Handoff']++;
+        }
+        if (t.completedAsPlanned === 'NO') {
+          catCounts['Prerequisite / Handoff']++;
+        }
+      });
+
+      const ctxVar = document.getElementById('chart-variance-reasons');
+      if (ctxVar) {
+        if (chartInstances.variance) chartInstances.variance.destroy();
+        chartInstances.variance = new Chart(ctxVar, {
+          type: 'doughnut',
+          data: {
+            labels: Object.keys(catCounts),
+            datasets: [{
+              data: Object.values(catCounts),
+              backgroundColor: ['#e11d48', '#f59e0b', '#0284c7', '#6366f1']
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+            }
+          }
+        });
+      }
+    }
+
+    // =========================================================================
+    // WORKSPACE B: TRADE PARTNER SUBMISSION PORTAL
+    // =========================================================================
+    function openPortalForContractor(orgCode) {
+      state.selectedTradeOrg = orgCode;
+      const orgObj = getOrgByCode(orgCode);
+      state.portalForeman = orgObj.defaultForeman || '';
+      state.portalMode = 'trade';
+      saveState();
+      renderAll();
+    }
+
+    function populatePortalDropdowns() {
+      const orgSel = document.getElementById('portal-org-select');
+      const tradeOrgs = state.organizations.filter(function(o) { return !o.isGC; });
+      orgSel.innerHTML = tradeOrgs.map(function(o) {
+        const cnt = state.officialTasks.filter(function(t) { return t.org === o.code; }).length;
+        return '<option value="' + escapeHtml(o.code) + '">' + escapeHtml(o.code) + ' — ' + escapeHtml(o.fullName) + ' (' + cnt + ' scheduled)</option>';
+      }).join('');
+      if (!tradeOrgs.some(function(o) { return o.code === state.selectedTradeOrg; })) {
+        state.selectedTradeOrg = tradeOrgs[0].code;
+      }
+      orgSel.value = state.selectedTradeOrg;
+
+      const fInput = document.getElementById('portal-foreman-input');
+      fInput.value = state.portalForeman || getOrgByCode(state.selectedTradeOrg).defaultForeman || '';
+
+      const areaSel = document.getElementById('new-task-area');
+      areaSel.innerHTML = state.areas.map(function(a) {
+        return '<option value="' + escapeHtml(a) + '">' + escapeHtml(a) + '</option>';
+      }).join('');
+    }
+
+    function handlePortalOrgChange(orgCode) {
+      state.selectedTradeOrg = orgCode;
+      const orgObj = getOrgByCode(orgCode);
+      state.portalForeman = orgObj.defaultForeman || '';
+      document.getElementById('portal-foreman-input').value = state.portalForeman;
+      saveState();
+      renderTradePortal();
+    }
+
+    function renderTradePortal() {
+      const showOthers = document.getElementById('portal-show-other-trades').checked;
+      const myTasks = state.officialTasks.filter(function(t) { return t.org === state.selectedTradeOrg; });
+      const myAreas = {};
+      myTasks.forEach(function(t) { myAreas[t.area] = true; });
+
+      const displayTasks = showOthers
+        ? state.officialTasks.filter(function(t) {
+            return Object.keys(myAreas).length === 0 ? true : Boolean(myAreas[t.area]);
+          })
+        : myTasks;
+
+      const tasksEl = document.getElementById('portal-tasks-container');
+      if (displayTasks.length === 0) {
+        tasksEl.innerHTML = '<div class="p-6 text-center">' +
+          '<p class="text-sm font-semibold text-slate-700">No active tasks currently on the Official WWP for ' + escapeHtml(state.selectedTradeOrg) + '.</p>' +
+          '<p class="text-xs text-slate-500 mt-1">Use the "+ Propose New Lookahead Assignment" form below to submit your upcoming scope, or check "Show other trades in same areas" above to inspect the field schedule.</p>' +
+        '</div>';
+      } else {
+        tasksEl.innerHTML = displayTasks.map(function(t) {
+          const isMine = t.org === state.selectedTradeOrg;
+          const orgObj = getOrgByCode(t.org);
+          const alreadyStaged = state.portalStagedItems.some(function(s) { return s.taskId === t.id; });
+
+          return '<div class="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ' + (isMine ? 'bg-white' : 'bg-slate-50/80 opacity-80') + '">' +
+            '<div class="flex flex-col gap-1">' +
+              '<div class="flex items-center gap-2 flex-wrap">' +
+                '<span class="px-2 py-0.5 rounded text-[10px] font-bold text-white" style="background-color:' + escapeHtml(orgObj.color) + '">' + escapeHtml(t.org) + '</span>' +
+                '<span class="text-xs font-bold text-slate-700">' + escapeHtml(t.area) + ' &bull; WBS ' + escapeHtml(t.wbs) + '</span>' +
+                '<span class="text-xs text-slate-500">' + formatShortDate(t.startDate) + ' – ' + formatShortDate(t.endDate) + ' &bull; ' + t.percentComplete + '% Complete</span>' +
+                (alreadyStaged ? '<span class="px-2 py-0.5 rounded bg-sky-100 text-sky-800 text-[10px] font-bold">Update Staged</span>' : '') +
+              '</div>' +
+              '<div class="text-sm font-semibold text-slate-900">' + escapeHtml(t.description) + '</div>' +
+              (t.prerequisite ? '<div class="text-xs text-rose-700">Prerequisite: ' + escapeHtml(t.prerequisite) + '</div>' : '') +
+            '</div>' +
+            '<div class="shrink-0">' +
+              (isMine
+                ? '<button type="button" onclick="openStageTaskUpdateModal(\'' + t.id + '\')" class="px-3.5 py-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 text-xs font-semibold transition">Stage Update</button>'
+                : '<span class="text-[11px] font-medium text-slate-400 px-2 py-1 rounded bg-slate-100">Read-Only (Other Trade)</span>') +
+            '</div>' +
+          '</div>';
+        }).join('');
+      }
+
+      // Render Staged Cart
+      const countEl = document.getElementById('portal-staged-count');
+      countEl.textContent = state.portalStagedItems.length + ' item' + (state.portalStagedItems.length === 1 ? '' : 's');
+
+      const stagedEl = document.getElementById('portal-staged-list');
+      if (state.portalStagedItems.length === 0) {
+        stagedEl.innerHTML = '<div class="py-6 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-lg p-3">No updates staged yet. Click "Stage Update" on any of your tasks or add a new lookahead task on the left.</div>';
+      } else {
+        stagedEl.innerHTML = state.portalStagedItems.map(function(item, idx) {
+          return '<div class="p-3 rounded-lg border border-sky-200 bg-sky-50/50 text-xs flex flex-col gap-1">' +
+            '<div class="flex items-center justify-between gap-2">' +
+              '<span class="font-bold text-sky-900">' + (item.type === 'NEW_TASK' ? '[NEW] ' : '[UPDATE] ') + escapeHtml(item.org) + ' &bull; ' + escapeHtml(item.area) + '</span>' +
+              '<button type="button" onclick="removePortalStagedItem(' + idx + ')" class="text-rose-600 hover:text-rose-800 font-semibold text-[11px]">Remove</button>' +
+            '</div>' +
+            '<div class="font-medium text-slate-800">' + escapeHtml(item.description) + '</div>' +
+            '<div class="text-[11px] text-slate-600">' + formatShortDate(item.proposedStartDate) + ' &rarr; ' + formatShortDate(item.proposedEndDate) + ' &bull; ' + item.proposedPercent + '%</div>' +
+          '</div>';
+        }).join('');
+      }
+    }
+
+    function openStageTaskUpdateModal(taskId) {
+      const t = getTaskById(taskId);
+      if (!t) return;
+      const varOpts = '<option value="">— Select if NO —</option>' + VARIANCE_CATEGORIES.map(function(vc) {
+        return '<option value="' + escapeHtml(vc) + '"' + (t.varianceCategory === vc ? ' selected' : '') + '>' + escapeHtml(vc) + '</option>';
+      }).join('');
+
+      openModal(
+        '<div class="p-5">' +
+          '<h3 class="text-base font-bold text-slate-900">Propose Update: ' + escapeHtml(t.description) + '</h3>' +
+          '<p class="text-xs text-slate-500 mt-0.5">' + escapeHtml(t.area) + ' &bull; Official Dates: ' + formatShortDate(t.startDate) + ' – ' + formatShortDate(t.endDate) + ' (Locked until McGough approves)</p>' +
+          '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 text-xs">' +
+            '<div><label class="block font-semibold text-slate-700 mb-1">Proposed Start Date</label><input id="stu-start" type="date" value="' + escapeHtml(t.startDate) + '" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300" /></div>' +
+            '<div><label class="block font-semibold text-slate-700 mb-1">Proposed End Date</label><input id="stu-end" type="date" value="' + escapeHtml(t.endDate) + '" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300" /></div>' +
+            '<div><label class="block font-semibold text-slate-700 mb-1">Updated % Complete</label><input id="stu-pct" type="number" min="0" max="100" value="' + Number(t.percentComplete) + '" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300" /></div>' +
+            '<div><label class="block font-semibold text-slate-700 mb-1">Planned Crew Size</label><input id="stu-crew" type="number" min="1" max="99" value="' + Number(t.crew || 4) + '" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300" /></div>' +
+            '<div><label class="block font-semibold text-slate-700 mb-1">Completed Commitment as Planned?</label>' +
+              '<select id="stu-ppc" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white">' +
+                '<option value="">In Progress / Not Due Yet</option>' +
+                '<option value="YES"' + (t.completedAsPlanned === 'YES' ? ' selected' : '') + '>YES — On Plan</option>' +
+                '<option value="NO"' + (t.completedAsPlanned === 'NO' ? ' selected' : '') + '>NO — Variance Occurred</option>' +
+              '</select>' +
+            '</div>' +
+            '<div><label class="block font-semibold text-slate-700 mb-1">Variance Reason (If NO)</label><select id="stu-var" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white">' + varOpts + '</select></div>' +
+            '<div class="sm:col-span-2"><label class="block font-semibold text-slate-700 mb-1">Required Prerequisite / Roadblock From Others</label><input id="stu-prereq" type="text" value="' + escapeHtml(t.prerequisite || '') + '" placeholder="Leave blank if install-ready" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300" /></div>' +
+            '<div class="sm:col-span-2"><label class="block font-semibold text-slate-700 mb-1">Foreman Coordination Note for McGough</label><input id="stu-comment" type="text" placeholder="e.g., Ready for overhead inspection Thursday afternoon" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300" /></div>' +
+          '</div>' +
+          '<div class="mt-5 flex justify-end gap-2">' +
+            '<button type="button" onclick="closeModal()" class="px-3.5 py-2 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700">Cancel</button>' +
+            '<button type="button" onclick="confirmStageTaskUpdate(\'' + t.id + '\')" class="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold">Stage Update</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    function confirmStageTaskUpdate(taskId) {
+      const t = getTaskById(taskId);
+      if (!t) return;
+      const sDate = document.getElementById('stu-start').value;
+      const eDate = document.getElementById('stu-end').value;
+      if (!sDate || !eDate || eDate < sDate) {
+        showToast('Please enter a valid start and end date.', 'error');
+        return;
+      }
+      const foreman = document.getElementById('portal-foreman-input').value.trim() || t.responsible || state.selectedTradeOrg;
+      state.portalForeman = foreman;
+
+      // Replace if already staged for same task
+      state.portalStagedItems = state.portalStagedItems.filter(function(x) { return x.taskId !== taskId; });
+      state.portalStagedItems.push({
+        subId: 'sub-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+        isDemo: false,
+        type: 'TASK_UPDATE',
+        taskId: t.id,
+        org: t.org,
+        submittedBy: foreman,
+        submittedAt: 'Just now',
+        area: t.area,
+        wbs: t.wbs,
+        description: t.description,
+        proposedStartDate: sDate,
+        proposedEndDate: eDate,
+        proposedPercent: Math.min(100, Math.max(0, Number(document.getElementById('stu-pct').value) || 0)),
+        proposedCrew: Math.max(1, Number(document.getElementById('stu-crew').value) || 4),
+        proposedCompletedAsPlanned: document.getElementById('stu-ppc').value || null,
+        proposedVarianceCategory: document.getElementById('stu-var').value || '',
+        proposedPrerequisite: document.getElementById('stu-prereq').value.trim(),
+        comment: document.getElementById('stu-comment').value.trim()
+      });
+
+      closeModal();
+      saveState();
+      renderTradePortal();
+      showToast('Update staged! Click "Submit Updates for McGough Approval" when finished.', 'info');
+    }
+
+    function stageNewTaskFromPortal() {
+      const desc = document.getElementById('new-task-desc').value.trim();
+      const sDate = document.getElementById('new-task-start').value;
+      const eDate = document.getElementById('new-task-end').value;
+      if (!desc) {
+        showToast('Please enter an Assignment Description.', 'error');
+        return;
+      }
+      if (!sDate || !eDate || eDate < sDate) {
+        showToast('End date must be on or after start date.', 'error');
+        return;
+      }
+      const foreman = document.getElementById('portal-foreman-input').value.trim() || getOrgByCode(state.selectedTradeOrg).defaultForeman || 'Foreman';
+      state.portalForeman = foreman;
+
+      state.portalStagedItems.push({
+        subId: 'sub-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+        isDemo: false,
+        type: 'NEW_TASK',
+        taskId: null,
+        org: state.selectedTradeOrg,
+        submittedBy: foreman,
+        submittedAt: 'Just now',
+        area: document.getElementById('new-task-area').value,
+        wbs: document.getElementById('new-task-wbs').value.trim() || '-',
+        description: desc,
+        proposedStartDate: sDate,
+        proposedEndDate: eDate,
+        proposedPercent: 0,
+        proposedCrew: Math.max(1, Number(document.getElementById('new-task-crew').value) || 4),
+        proposedCompletedAsPlanned: null,
+        proposedVarianceCategory: '',
+        proposedPrerequisite: document.getElementById('new-task-prereq').value.trim(),
+        comment: 'New lookahead task submitted via Trade Partner Portal'
+      });
+
+      document.getElementById('new-task-desc').value = '';
+      document.getElementById('new-task-prereq').value = '';
+      saveState();
+      renderTradePortal();
+      showToast('Added new proposed task to your staged submission.', 'info');
+    }
+
+    function removePortalStagedItem(idx) {
+      state.portalStagedItems.splice(idx, 1);
+      saveState();
+      renderTradePortal();
+    }
+
+    function submitPortalPackageToMcGough() {
+      if (state.portalStagedItems.length === 0) {
+        showToast('Stage at least one task update or new task before submitting.', 'error');
+        return;
+      }
+      const count = state.portalStagedItems.length;
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      state.portalStagedItems.forEach(function(item) {
+        item.submittedAt = 'Today ' + timeStr;
+        state.pendingSubmissions.unshift(item);
+      });
+      state.portalStagedItems = [];
+      saveState();
+      renderAll();
+
+      openModal(
+        '<div class="p-6 text-center">' +
+          '<div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto mb-3">' +
+            '<svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>' +
+          '</div>' +
+          '<h3 class="text-base font-bold text-slate-900">Submitted ' + count + ' Update(s) to McGough Supervision!</h3>' +
+          '<p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">The Official WWP remains unchanged until an authorized McGough Superintendent or Scheduler reviews and approves your package.</p>' +
+          '<div class="mt-5 flex flex-wrap justify-center gap-2">' +
+            '<button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700">Stay in Trade Portal</button>' +
+            '<button type="button" onclick="closeModal(); switchPortalMode(\'gc\'); switchGcTab(\'approvals\');" class="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold">Review in McGough Approval Queue &rarr;</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    // =========================================================================
+    // MODALS: OFFICIAL TASK EDITOR, SHARE LINK, APPROVERS, CONTRACTOR, EXPORT
+    // =========================================================================
+    function openModal(innerHtml) {
+      const backdrop = document.getElementById('modal-backdrop');
+      const content = document.getElementById('modal-content');
+      content.innerHTML = innerHtml;
+      backdrop.classList.remove('hidden');
+    }
+
+    function closeModal() {
+      const backdrop = document.getElementById('modal-backdrop');
+      backdrop.classList.add('hidden');
+    }
+
+    function handleBackdropClick(e) {
+      if (e.target && e.target.id === 'modal-backdrop') {
+        closeModal();
+      }
+    }
+
+    // Add / Edit Official Task Modal (McGough GC Direct Edit)
+    function openTaskModal(taskId, defaultArea) {
+      const existing = taskId ? getTaskById(taskId) : null;
+      const t = existing || {
+        wbs: '8',
+        area: defaultArea || state.areas[0],
+        description: '',
+        org: 'LoenBro',
+        responsible: 'Anthony Richison',
+        crew: 4,
+        startDate: state.lookaheadStart,
+        endDate: addDaysIso(state.lookaheadStart, 4),
+        percentComplete: 0,
+        completedAsPlanned: null,
+        varianceCategory: '',
+        prerequisite: '',
+        prerequisiteStatus: 'OPEN'
+      };
+
+      const areaOpts = state.areas.map(function(a) {
+        return '<option value="' + escapeHtml(a) + '"' + (a === t.area ? ' selected' : '') + '>' + escapeHtml(a) + '</option>';
+      }).join('');
+
+      const orgOpts = state.organizations.map(function(o) {
+        return '<option value="' + escapeHtml(o.code) + '"' + (o.code === t.org ? ' selected' : '') + '>' + escapeHtml(o.code) + ' — ' + escapeHtml(o.fullName) + '</option>';
+      }).join('');
+
+      openModal(
+        '<div class="p-5">' +
+          '<div class="flex items-center justify-between pb-3 border-b border-slate-100">' +
+            '<h3 class="text-base font-bold text-slate-900">' + (existing ? 'Edit Official WWP Task' : 'Add Official WWP Task') + '</h3>' +
+            (existing ? '<button type="button" onclick="deleteOfficialTask(\'' + existing.id + '\')" class="text-xs font-semibold text-rose-600 hover:text-rose-800">Delete Task</button>' : '') +
+          '</div>' +
+          '<div class="grid grid-cols-1 sm:grid-cols-6 gap-3 mt-4 text-xs">' +
+            '<div class="sm:col-span-3"><label class="block font-semibold text-slate-700 mb-1">Project Area</label><select id="tm-area" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white">' + areaOpts + '</select></div>' +
+            '<div class="sm:col-span-1"><label class="block font-semibold text-slate-700 mb-1">WBS #</label><input id="tm-wbs" type="text" value="' + escapeHtml(t.wbs) + '" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300" /></div>' +
+            '<div class="sm:col-span-2"><label class="block font-semibold text-slate-700 mb-1">Crew Size</label><input id="tm-crew" type="number" min="1" max="99" value="' + Number(t.crew || 4) + '" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300" /></div>' +
+            '<div class="sm:col-span-4"><label class="block font-semibold text-slate-700 mb-1">Organization (JOBDATA)</label><select id="tm-org" onchange="autoFillForemanInModal(this.value)" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white">' + orgOpts + '</select></div>' +
+            '<div class="sm:col-span-2"><label class="block font-semibold text-slate-700 mb-1">Responsible Person</label><input id="tm-resp" type="text" value="' + escapeHtml(t.responsible) + '" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300" /></div>' +
+            '<div class="sm:col-span-6"><label class="block font-semibold text-slate-700 mb-1">Assignment Description (How Many / How Far / Sequence) *</label><input id="tm-desc" type="text" value="' + escapeHtml(t.description) + '" class="w-full px-3 py-1.5 rounded-lg border border-slate-300" /></div>' +
+            '<div class="sm:col-span-2"><label class="block font-semibold text-slate-700 mb-1">Start Date</label><input id="tm-start" type="date" value="' + escapeHtml(t.startDate) + '" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300" /></div>' +
+            '<div class="sm:col-span-2"><label class="block font-semibold text-slate-700 mb-1">End Date</label><input id="tm-end" type="date" value="' + escapeHtml(t.endDate) + '" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300" /></div>' +
+            '<div class="sm:col-span-2"><label class="block font-semibold text-slate-700 mb-1">% Complete</label><input id="tm-pct" type="number" min="0" max="100" value="' + Number(t.percentComplete) + '" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300" /></div>' +
+            '<div class="sm:col-span-6"><label class="block font-semibold text-slate-700 mb-1">Required Prerequisite Work From Others (Roadblock)</label><input id="tm-prereq" type="text" value="' + escapeHtml(t.prerequisite || '') + '" placeholder="Optional handoff or delivery requirement" class="w-full px-3 py-1.5 rounded-lg border border-slate-300" /></div>' +
+          '</div>' +
+          '<div class="mt-5 flex justify-end gap-2">' +
+            '<button type="button" onclick="closeModal()" class="px-3.5 py-2 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700">Cancel</button>' +
+            '<button type="button" onclick="saveOfficialTaskModal(\'' + (existing ? existing.id : '') + '\')" class="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold">Save Official Task</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    function autoFillForemanInModal(orgCode) {
+      const orgObj = getOrgByCode(orgCode);
+      const respInp = document.getElementById('tm-resp');
+      if (respInp && orgObj.defaultForeman) {
+        respInp.value = orgObj.defaultForeman;
+      }
+    }
+
+    function saveOfficialTaskModal(existingId) {
+      const desc = document.getElementById('tm-desc').value.trim();
+      const sDate = document.getElementById('tm-start').value;
+      const eDate = document.getElementById('tm-end').value;
+      if (!desc) {
+        showToast('Please enter an assignment description.', 'error');
+        return;
+      }
+      if (!sDate || !eDate || eDate < sDate) {
+        showToast('End date must be on or after start date.', 'error');
+        return;
+      }
+      const pct = Math.min(100, Math.max(0, Number(document.getElementById('tm-pct').value) || 0));
+      const prereq = document.getElementById('tm-prereq').value.trim();
+
+      if (existingId) {
+        const t = getTaskById(existingId);
+        if (t) {
+          const datesChanged = t.startDate !== sDate || t.endDate !== eDate;
+          t.area = document.getElementById('tm-area').value;
+          t.wbs = document.getElementById('tm-wbs').value.trim() || '-';
+          t.crew = Math.max(1, Number(document.getElementById('tm-crew').value) || 4);
+          t.org = document.getElementById('tm-org').value;
+          t.responsible = document.getElementById('tm-resp').value.trim();
+          t.description = desc;
+          t.startDate = sDate;
+          t.endDate = eDate;
+          t.percentComplete = pct;
+          if (datesChanged) {
+            t.dailyPlan = buildPlanRange(sDate, eDate, { markComplete: pct >= 100 });
+          }
+          t.prerequisite = prereq;
+          if (!prereq) t.prerequisiteStatus = 'CLEARED';
+          else if (t.prerequisiteStatus === 'CLEARED') t.prerequisiteStatus = 'OPEN';
+        }
+      } else {
+        state.officialTasks.push({
+          id: 't-' + Date.now(),
+          area: document.getElementById('tm-area').value,
+          wbs: document.getElementById('tm-wbs').value.trim() || '-',
+          crew: Math.max(1, Number(document.getElementById('tm-crew').value) || 4),
+          org: document.getElementById('tm-org').value,
+          responsible: document.getElementById('tm-resp').value.trim(),
+          description: desc,
+          startDate: sDate,
+          endDate: eDate,
+          percentComplete: pct,
+          dailyPlan: buildPlanRange(sDate, eDate, { markStart: true, markComplete: pct >= 100 }),
+          completedAsPlanned: null,
+          varianceCategory: '',
+          prerequisite: prereq,
+          prerequisiteStatus: prereq ? 'OPEN' : 'CLEARED'
+        });
+      }
+
+      closeModal();
+      saveState();
+      renderAll();
+      showToast('Saved task to Official WWP.', 'success');
+    }
+
+    function deleteOfficialTask(taskId) {
+      state.officialTasks = state.officialTasks.filter(function(t) { return t.id !== taskId; });
+      closeModal();
+      saveState();
+      renderAll();
+      showToast('Removed task from Official WWP.', 'info');
+    }
+
+    // Share Trade Submission Link Modal
+    function getBaseShareUrl(orgCode) {
+      const base = (window.location.href || 'https://wwp.mcgough-project.app/week-11').split('#')[0];
+      if (!orgCode || orgCode === 'ALL') return base + '#portal';
+      return base + '#portal?org=' + encodeURIComponent(orgCode);
+    }
+
+    function copyContractorPortalLink(orgCode) {
+      copyTextSafe(getBaseShareUrl(orgCode), 'Copied ' + orgCode + ' Trade Portal link!');
+    }
+
+    function openShareLinkModal() {
+      const orgOpts = '<option value="ALL">All Trades Universal Link (Foreman selects company)</option>' +
+        state.organizations.filter(function(o) { return !o.isGC; }).map(function(o) {
+          return '<option value="' + escapeHtml(o.code) + '">' + escapeHtml(o.code) + ' Direct Pre-Filtered Link</option>';
+        }).join('');
+
+      const linkVal = getBaseShareUrl('ALL');
+      const wkNum = computePlanningWeekNumber(state.lookaheadStart);
+
+      openModal(
+        '<div class="p-5">' +
+          '<h3 class="text-base font-bold text-slate-900">Send Weekly Work Plan Link to Trade Partners</h3>' +
+          '<p class="text-xs text-slate-500 mt-1">Trades opening this link enter the read-only Trade Partner Portal where their updates are staged for McGough approval.</p>' +
+
+          '<div class="mt-4 flex flex-col gap-3 text-xs">' +
+            '<div>' +
+              '<label class="block font-semibold text-slate-700 mb-1">1. Choose Trade Link Scope</label>' +
+              '<select id="share-org-select" onchange="updateShareModalLinkPreview()" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-medium">' + orgOpts + '</select>' +
+            '</div>' +
+
+            '<div>' +
+              '<label class="block font-semibold text-slate-700 mb-1">2. Shareable Portal URL</label>' +
+              '<div class="flex gap-2">' +
+                '<input id="share-url-preview" type="text" readonly value="' + escapeHtml(linkVal) + '" class="flex-1 px-3 py-2 rounded-lg border border-slate-300 bg-slate-50 font-mono text-[11px] text-slate-700" />' +
+                '<button type="button" onclick="copyTextSafe(document.getElementById(\'share-url-preview\').value, \'Trade Portal URL copied!\')" class="px-3.5 py-2 rounded-lg bg-red-700 hover:bg-red-600 text-white font-semibold shrink-0">Copy Link</button>' +
+              '</div>' +
+            '</div>' +
+
+            '<div>' +
+              '<label class="block font-semibold text-slate-700 mb-1">3. Ready-to-Send Weekly Foremen Huddle Email / Text Invite</label>' +
+              '<textarea id="share-invite-text" rows="4" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs text-slate-700">Team — Please submit your Planning Week ' + wkNum + ' WWP updates and 3-week lookahead tasks before Tuesday 2:00 PM for McGough review. Official WWP tasks hold area priority:\n' + escapeHtml(linkVal) + '</textarea>' +
+              '<div class="mt-1.5 flex justify-between items-center">' +
+                '<button type="button" onclick="closeModal(); switchPortalMode(\'trade\');" class="text-sky-700 hover:text-sky-900 font-semibold">Preview Trade Portal Live &rarr;</button>' +
+                '<button type="button" onclick="copyTextSafe(document.getElementById(\'share-invite-text\').value, \'Weekly huddle invite copied!\')" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 font-semibold text-slate-700">Copy Invite Message</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="mt-5 pt-3 border-t border-slate-100 flex justify-end">' +
+            '<button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold">Done</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    function updateShareModalLinkPreview() {
+      const org = document.getElementById('share-org-select').value;
+      const url = getBaseShareUrl(org);
+      const wkNum = computePlanningWeekNumber(state.lookaheadStart);
+      document.getElementById('share-url-preview').value = url;
+      const prefix = org === 'ALL' ? 'Team' : org + ' Team';
+      document.getElementById('share-invite-text').value = prefix + ' — Please submit your Planning Week ' + wkNum + ' WWP updates and 3-week lookahead tasks before Tuesday 2:00 PM for McGough review. Official WWP tasks hold area priority:\n' + url;
+    }
+
+    // Manage Specified McGough Personnel Approvers Modal
+    function openApproversModal() {
+      const rows = state.approvers.map(function(a) {
+        return '<div class="p-2.5 rounded-lg border border-slate-200 flex items-center justify-between gap-2 text-xs bg-slate-50">' +
+          '<div>' +
+            '<div class="font-bold text-slate-900">' + escapeHtml(a.name) + ' <span class="font-normal text-slate-500">(' + escapeHtml(a.role) + ')</span></div>' +
+            '<div class="text-[11px] text-slate-500">Scope: ' + escapeHtml(a.scope) + '</div>' +
+          '</div>' +
+          (state.approvers.length > 1
+            ? '<button type="button" onclick="removeApprover(\'' + a.id + '\')" class="text-rose-600 hover:text-rose-800 font-semibold">Remove</button>'
+            : '') +
+        '</div>';
+      }).join('');
+
+      openModal(
+        '<div class="p-5">' +
+          '<h3 class="text-base font-bold text-slate-900">Specified McGough Approvers</h3>' +
+          '<p class="text-xs text-slate-500 mt-1">Only personnel listed below can approve and merge Trade Partner WWP submissions into the Official Plan.</p>' +
+          '<div class="mt-3 flex flex-col gap-2 max-h-56 overflow-y-auto">' + rows + '</div>' +
+
+          '<div class="mt-4 pt-3 border-t border-slate-200">' +
+            '<h4 class="text-xs font-bold text-slate-800 mb-2">+ Add Designated McGough Approver</h4>' +
+            '<div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">' +
+              '<input id="new-app-name" type="text" placeholder="Full Name (e.g. Superintendent)" class="px-2.5 py-1.5 rounded-lg border border-slate-300" />' +
+              '<input id="new-app-role" type="text" placeholder="Title / Role" class="px-2.5 py-1.5 rounded-lg border border-slate-300" />' +
+              '<input id="new-app-scope" type="text" placeholder="Area Scope (e.g. Data Halls)" class="px-2.5 py-1.5 rounded-lg border border-slate-300" />' +
+            '</div>' +
+            '<div class="mt-2.5 flex justify-end">' +
+              '<button type="button" onclick="addMcGoughApprover()" class="px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold">+ Add Approver</button>' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="mt-4 pt-3 border-t border-slate-100 flex justify-end">' +
+            '<button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold">Close</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    function addMcGoughApprover() {
+      const name = document.getElementById('new-app-name').value.trim();
+      const role = document.getElementById('new-app-role').value.trim() || 'McGough Approver';
+      const scope = document.getElementById('new-app-scope').value.trim() || 'All Areas';
+      if (!name) {
+        showToast('Enter the McGough approver name.', 'error');
+        return;
+      }
+      const newId = 'app-' + Date.now();
+      state.approvers.push({ id: newId, name: name, role: role, scope: scope });
+      state.activeApproverId = newId;
+      saveState();
+      renderAll();
+      openApproversModal();
+      showToast('Added ' + name + ' as an authorized McGough Approver.', 'success');
+    }
+
+    function removeApprover(appId) {
+      if (state.approvers.length <= 1) return;
+      state.approvers = state.approvers.filter(function(a) { return a.id !== appId; });
+      if (state.activeApproverId === appId) {
+        state.activeApproverId = state.approvers[0].id;
+      }
+      saveState();
+      renderAll();
+      openApproversModal();
+    }
+
+    // Add New Contractor Modal
+    function openAddContractorModal() {
+      openModal(
+        '<div class="p-5">' +
+          '<h3 class="text-base font-bold text-slate-900">Add Contractor to JOBDATA Roster</h3>' +
+          '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 text-xs">' +
+            '<div><label class="block font-semibold text-slate-700 mb-1">Short Code *</label><input id="nc-code" type="text" placeholder="e.g., Gephart" class="w-full px-3 py-2 rounded-lg border border-slate-300" /></div>' +
+            '<div><label class="block font-semibold text-slate-700 mb-1">Full Company Name</label><input id="nc-full" type="text" placeholder="e.g., Gephart Electric" class="w-full px-3 py-2 rounded-lg border border-slate-300" /></div>' +
+            '<div><label class="block font-semibold text-slate-700 mb-1">Default Foreman</label><input id="nc-foreman" type="text" placeholder="Optional lead name" class="w-full px-3 py-2 rounded-lg border border-slate-300" /></div>' +
+            '<div><label class="block font-semibold text-slate-700 mb-1">Badge Color</label><input id="nc-color" type="color" value="#0284c7" class="w-full h-9 rounded-lg border border-slate-300 p-1" /></div>' +
+          '</div>' +
+          '<div class="mt-5 flex justify-end gap-2">' +
+            '<button type="button" onclick="closeModal()" class="px-3.5 py-2 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700">Cancel</button>' +
+            '<button type="button" onclick="saveNewContractor()" class="px-4 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold">Add Contractor</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    function saveNewContractor() {
+      const code = document.getElementById('nc-code').value.trim();
+      if (!code) {
+        showToast('Enter a short contractor code.', 'error');
+        return;
+      }
+      state.organizations.push({
+        code: code,
+        fullName: document.getElementById('nc-full').value.trim() || code,
+        defaultForeman: document.getElementById('nc-foreman').value.trim(),
+        color: document.getElementById('nc-color').value || '#0284c7',
+        isGC: false
+      });
+      closeModal();
+      saveState();
+      renderAll();
+      showToast('Added ' + code + ' to project contractors!', 'success');
+    }
+
+    // Export / Import / Print / Reset Modal
+    function openExportDataModal() {
+      openModal(
+        '<div class="p-5">' +
+          '<h3 class="text-base font-bold text-slate-900">Export, Import &amp; Field Huddle Tools</h3>' +
+          '<p class="text-xs text-slate-500 mt-1">Export the Official WWP to Excel CSV, import a Trade Partner JSON update packet, print for wall huddles, or reset sample data.</p>' +
+          '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 text-xs">' +
+            '<button type="button" onclick="exportOfficialCsv(); closeModal();" class="p-3.5 rounded-xl border border-slate-200 hover:border-slate-400 text-left bg-slate-50 hover:bg-white transition">' +
+              '<div class="font-bold text-slate-900">Export Official WWP (.csv)</div>' +
+              '<div class="text-slate-500 mt-0.5">Spreadsheet export with WBS, Area, Organization, Foreman, Dates, %, PPC &amp; Prerequisites.</div>' +
+            '</button>' +
+            '<button type="button" onclick="closeModal(); window.print();" class="p-3.5 rounded-xl border border-slate-200 hover:border-slate-400 text-left bg-slate-50 hover:bg-white transition">' +
+              '<div class="font-bold text-slate-900">Print Field Huddle View</div>' +
+              '<div class="text-slate-500 mt-0.5">Clean landscape printout of the current lookahead window for jobsite trailer boards.</div>' +
+            '</button>' +
+            '<button type="button" onclick="triggerJsonImport()" class="p-3.5 rounded-xl border border-sky-200 hover:border-sky-400 text-left bg-sky-50/50 hover:bg-sky-50 transition">' +
+              '<div class="font-bold text-sky-900">Import Trade Update Packet (.json)</div>' +
+              '<div class="text-slate-600 mt-0.5">Load a submission file sent by a Trade Partner directly into the Approval Queue.</div>' +
+            '</button>' +
+            '<button type="button" onclick="resetFullAppDefault()" class="p-3.5 rounded-xl border border-rose-200 hover:border-rose-400 text-left bg-rose-50/40 hover:bg-rose-50 transition">' +
+              '<div class="font-bold text-rose-900">Reset to Initial Week 11 Baseline</div>' +
+              '<div class="text-slate-600 mt-0.5">Restores all 44 baseline tasks, 27 contractors, and 4 sample staging items.</div>' +
+            '</button>' +
+          '</div>' +
+          '<div class="mt-5 flex justify-end">' +
+            '<button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold">Close</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    function downloadBlob(content, filename, mimeType) {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    }
+
+    function exportOfficialCsv() {
+      const headers = ['WBS', 'Area', 'Assignment Description', 'Organization', 'Responsible Person', 'Crew Size', 'Start Date', 'End Date', 'Percent Complete', 'Completed As Planned', 'Variance Category', 'Required Prerequisite'];
+      const rows = [headers.join(',')];
+      state.officialTasks.forEach(function(t) {
+        const vals = [
+          t.wbs, t.area, t.description, t.org, t.responsible, t.crew || '',
+          t.startDate, t.endDate, t.percentComplete + '%',
+          t.completedAsPlanned || '', t.varianceCategory || '', t.prerequisite || ''
+        ].map(function(v) {
+          return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+        });
+        rows.push(vals.join(','));
+      });
+      const wkNum = computePlanningWeekNumber(state.lookaheadStart);
+      downloadBlob(rows.join('\n'), 'McGough_Official_WWP_Week_' + wkNum + '.csv', 'text/csv;charset=utf-8;');
+      showToast('Downloaded Official WWP CSV file!', 'success');
+    }
+
+    function exportStagedPacketJson() {
+      if (state.portalStagedItems.length === 0) {
+        showToast('Stage at least one task update before downloading a packet.', 'error');
+        return;
+      }
+      const payload = {
+        packetType: 'MCGOUGH_TRADE_SUBMISSION',
+        exportedAt: new Date().toISOString(),
+        organization: state.selectedTradeOrg,
+        submissions: state.portalStagedItems
+      };
+      downloadBlob(JSON.stringify(payload, null, 2), state.selectedTradeOrg + '_WWP_Submission.json', 'application/json');
+      showToast('Downloaded ' + state.selectedTradeOrg + ' WWP Submission Packet (.json)!', 'success');
+    }
+
+    function triggerJsonImport() {
+      closeModal();
+      const inp = document.getElementById('json-import-input');
+      if (inp) {
+        inp.value = '';
+        inp.click();
+      }
+    }
+
+    function handleJsonFileImport(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (parsed && parsed.packetType === 'MCGOUGH_TRADE_SUBMISSION' && Array.isArray(parsed.submissions)) {
+            parsed.submissions.forEach(function(item) {
+              item.subId = 'sub-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+              state.pendingSubmissions.unshift(item);
+            });
+            state.portalMode = 'gc';
+            state.gcTab = 'approvals';
+            saveState();
+            renderAll();
+            showToast('Imported ' + parsed.submissions.length + ' update(s) into McGough Approval Queue!', 'success');
+          } else {
+            showToast('Invalid WWP submission packet format.', 'error');
+          }
+        } catch (err) {
+          showToast('Could not parse JSON file.', 'error');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function resetFullAppDefault() {
+      try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+      state.lookaheadStart = BASE_ANCHOR_DATE;
+      state.horizonDays = 16;
+      state.displayMode = 'hybrid';
+      state.collapsedAreas = {};
+      state.organizations = JSON.parse(JSON.stringify(INITIAL_ORGANIZATIONS));
+      state.approvers = JSON.parse(JSON.stringify(INITIAL_APPROVERS));
+      state.activeApproverId = 'app-1';
+      state.officialTasks = createInitialTasks();
+      state.pendingSubmissions = createInitialPendingSubmissions();
+      state.auditLog = [];
+      state.portalStagedItems = [];
+      closeModal();
+      renderAll();
+      showToast('Restored initial Week 11 WWP baseline.', 'info');
+    }
+
+    // Boot application
+    window.addEventListener('hashchange', function() {
+      applyUrlHashRouting();
+      renderAll();
+    });
+
+    window.addEventListener('DOMContentLoaded', function() {
+      loadSavedState();
+      renderAll();
+    });
+  </script>
+</body>
+</html>
