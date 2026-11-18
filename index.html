@@ -5063,6 +5063,32 @@ body {
 
       renderMopQueue();
     }
+    function deleteMopModal(mopId) {
+      if (!state.gcAuthenticated || state.authRole !== 'mcgough') {
+        showToast('Only authorized McGough personnel can delete MOPs.', 'error');
+        openAuthLoginModal('gc');
+        return;
+      }
+      openModal(
+        '<div class="p-5">' +
+          '<h3 class="text-base font-bold text-slate-900">Delete ' + escapeHtml(mopId) + '?</h3>' +
+          '<p class="text-xs text-slate-600 mt-1">This permanently removes the MOP submittal and cannot be undone.</p>' +
+          '<div class="mt-4 flex justify-end gap-2">' +
+            '<button type="button" onclick="closeModal()" class="px-3.5 py-2 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700">Cancel</button>' +
+            '<button type="button" onclick="confirmDeleteMop(\'' + escapeHtml(mopId) + '\')" class="px-4 py-2 rounded-lg bg-rose-700 hover:bg-rose-600 text-white text-xs font-semibold">Delete MOP</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    function confirmDeleteMop(mopId) {
+      if (!state.gcAuthenticated || state.authRole !== 'mcgough') return;
+      state.mops = (state.mops || []).filter(function(m) { return m.mopId !== mopId; });
+      closeModal();
+      saveState();
+      renderAll();
+      showToast('Deleted ' + mopId + '.', 'info');
+    }
 
     function filterMopByCard(statusVal) {
       state.mopSubTab = 'queue';
@@ -5651,6 +5677,7 @@ body {
           '<div class="px-4 py-2.5 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">' +
             '<div class="flex flex-wrap items-center gap-2">' +
               '<button type="button" onclick="openOfficialMopSheetModal(\'' + escapeHtml(m.mopId) + '\')" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 font-semibold text-slate-800">View / Print Official MOP Form</button>' +
+              <button type="button" onclick="deleteMopModal(\'' + escapeHtml(m.mopId) + '\')" class="px-3 py-1.5 rounded-lg border border-rose-300 hover:bg-rose-50 text-rose-700 font-semibold">Delete MOP</button>
               ((m.workflowStatus === 'DRAFT' || m.workflowStatus === 'RETURNED')
                 ? '<button type="button" onclick="loadMopIntoEditor(\'' + escapeHtml(m.mopId) + '\')" class="px-3 py-1.5 rounded-lg border border-sky-300 bg-sky-50 hover:bg-sky-100 font-semibold text-sky-900">Edit Draft</button>' +
                   '<button type="button" onclick="submitExistingDraftMop(\'' + escapeHtml(m.mopId) + '\')" class="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-semibold">Submit for Approval</button>'
