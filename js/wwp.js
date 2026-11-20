@@ -269,7 +269,7 @@ function renderMeetingModeBar() {
       '<div class="flex flex-wrap items-center justify-between gap-2 text-xs">' +
         '<div class="flex items-center gap-2 flex-wrap">' +
           '<span class="px-2 py-0.5 rounded bg-indigo-600 text-white font-bold uppercase tracking-wider text-[10px]">WWP Meeting Mode</span>' +
-          '<strong class="text-sm text-white">' + escapeHtml(sc.prefix + ' - ' + sc.building + ' ' + sc.scopeType) + ' (Week ' + wkNum + ')</strong>' +
+          '<strong class="text-sm text-white">' + escapeHtml(sc.prefix + ' - ' + sc.campus + ' | ' + sc.building) + ' (Week ' + wkNum + ')</strong>' +
           frozenBadge +
         '</div>' +
         '<div class="flex flex-wrap items-center gap-1.5">' +

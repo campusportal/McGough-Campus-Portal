@@ -18,51 +18,46 @@
 </head>
 <body class="min-h-screen flex flex-col antialiased selection:bg-red-100 selection:text-red-900">
   <!-- ===================================================================== -->
-  <!-- DEDICATED FULL-SCREEN CAMPUS / BUILDING / SCOPE LOGIN GATE            -->
+  <!-- DEDICATED FULL-SCREEN CAMPUS & PROJECT LOGIN GATE                     -->
   <!-- ===================================================================== -->
   <main id="login-gate-shell" class="min-h-screen bg-slate-950 text-slate-900 flex flex-col justify-center py-8 px-3 sm:px-6">
     <div class="max-w-[1150px] w-full mx-auto flex flex-col gap-5">
-      <!-- Top Brand & Campus / Building / Scope Selector Card -->
+      <!-- Top Brand & Campus / Project Selector Card -->
       <div class="bg-slate-900 text-white p-5 sm:p-6 rounded-2xl border border-slate-800 shadow-2xl flex flex-col gap-4">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="flex items-center gap-3.5">
             <div class="w-11 h-11 rounded-xl bg-red-700 flex items-center justify-center font-bold text-xl tracking-tight border border-red-500/40 shrink-0">M</div>
             <div>
-              <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white">Ellendale Multi-Campus Field Coordination Portal</h1>
-              <p class="text-xs text-slate-400">Select your Campus, Building, and Contract Scope (Base Build or TFO), then enter your scoped PIN and press Enter.</p>
+              <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white">Polaris Forge 1 - Field Coordination Portal</h1>
+              <p class="text-xs text-slate-400">Select your Campus and Project, choose your representative or contractor, then enter your PIN suffix and press Enter.</p>
             </div>
           </div>
           <div class="flex flex-wrap items-center gap-2">
             <button type="button" id="login-cloud-sync-btn" onclick="openCloudSyncModal()" class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 text-xs font-semibold flex items-center gap-2 transition"><span class="w-2 h-2 rounded-full bg-slate-400"></span><span>Cloud Sync: Setup Firebase</span></button>
-            <span id="login-active-prefix-badge" class="px-3 py-1.5 rounded-lg bg-red-900/60 border border-red-500/50 text-red-200 font-mono text-xs font-bold">Active Project Prefix: EL4T-</span>
+            <span id="login-active-prefix-badge" class="px-3 py-1.5 rounded-lg bg-red-900/60 border border-red-500/50 text-red-200 font-mono text-xs font-bold">Active Project Identifier: EL4T-</span>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-800 text-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-slate-800 text-xs">
           <div>
             <label for="login-campus-select" class="block font-semibold text-slate-300 mb-1">1. Campus</label>
             <select id="login-campus-select" onchange="handleLoginCampusChange(this.value)" class="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-800 text-white font-semibold">
-              <option value="Ellendale Campus" selected>Ellendale Campus</option>
+              <option value="Polaris Forge 1" selected>Polaris Forge 1</option>
             </select>
           </div>
           <div>
-            <label for="login-building-select" class="block font-semibold text-slate-300 mb-1">2. Building</label>
-            <select id="login-building-select" onchange="handleLoginBuildingChange(this.value)" class="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-800 text-white font-semibold">
-              <option value="Building 4" selected>Building 4</option>
-              <option value="Building 1">Building 1</option>
-            </select>
-          </div>
-          <div>
-            <label for="login-scope-select" class="block font-semibold text-slate-300 mb-1">3. Project Scope (Base-Build / Tenant Fit-Out)</label>
-            <select id="login-scope-select" onchange="handleLoginScopeChange(this.value)" class="w-full px-3 py-2 rounded-lg border border-red-500/60 bg-slate-800 text-white font-bold">
-              <option value="el-b4-tfo" selected>Tenant Fit-Out (EL4T)</option>
-              <option value="el-b4-bb">Base-Build (EL4B)</option>
+            <label for="login-project-select" class="block font-semibold text-slate-300 mb-1">2. Project</label>
+            <select id="login-project-select" onchange="handleLoginProjectChange(this.value)" class="w-full px-3 py-2 rounded-lg border border-red-500/60 bg-slate-800 text-white font-bold">
+              <option value="eln03">ELN03 (EL3B-)</option>
+              <option value="eln03-tfo">ELN03 - TFO (EL3T-)</option>
+              <option value="el-b4-bb">ELN04 (EL4B-)</option>
+              <option value="el-b4-tfo" selected>ELN04 - TFO (EL4T-)</option>
             </select>
           </div>
         </div>
       </div>
 
-      <!-- Three Strictly Separated Role Login Cards (All PIN fields strictly blank; Enter key submits) -->
+      <!-- Three Strictly Separated Role Login Cards (Prefix Auto-Filled; Enter key submits) -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs">
         <!-- Role 1: McGough GC -->
         <div class="bg-white rounded-2xl border-2 border-slate-200 p-5 shadow-xl flex flex-col justify-between gap-4">
@@ -71,14 +66,22 @@
               <span class="px-2.5 py-1 rounded-md bg-red-100 text-red-900 font-bold uppercase tracking-wider text-[11px]">1. McGough Construction</span>
               <span class="text-[11px] font-semibold text-slate-400">GC Command</span>
             </div>
-            <p class="text-slate-600">Full Official WWP Lookahead, Trade WWP Queue, Gate 1 MOP Approvals, and Campus/Scope settings.</p>
+            <p class="text-slate-600">Full Official WWP Lookahead, P6 Tracker, Trade WWP Queue, Gate 1 MOPs, PCOs, and Campus settings.</p>
             <div>
               <label for="login-gc-approver" class="block font-semibold text-slate-700 mb-1">McGough Personnel</label>
-              <select id="login-gc-approver" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-medium text-slate-900"></select>
+              <select id="login-gc-approver" onchange="handleLoginGcApproverSelect(this.value)" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-medium text-slate-900">
+                <option value="app-1" selected>Lead Superintendent - McGough Senior Field Approver</option>
+                <option value="app-2">MEP Superintendent - McGough MEP &amp; Commissioning Lead</option>
+                <option value="app-3">Area Superintendent (Interiors) - McGough Admin &amp; Drywall/Ceilings</option>
+                <option value="app-4">Senior Project Engineer - McGough WWP Scheduler</option>
+              </select>
             </div>
             <div>
-              <label for="login-gc-pin" class="block font-semibold text-slate-700 mb-1">Scoped McGough PIN (Press Enter)</label>
-              <input id="login-gc-pin" type="password" value="" autocomplete="off" onkeydown="handleLoginPinKeydown(event, 'mcgough')" placeholder="Enter EL4T-XXXX PIN" class="w-full px-3 py-2 rounded-lg border border-slate-300 font-mono text-slate-900" />
+              <label for="login-gc-pin" class="block font-semibold text-slate-700 mb-1">McGough PIN (Prefix Auto-Filled - Press Enter)</label>
+              <div class="flex items-stretch rounded-lg border border-slate-300 bg-white overflow-hidden">
+                <span id="login-gc-prefix-addon" class="px-3 py-2 bg-slate-100 border-r border-slate-300 font-mono font-bold text-red-800 flex items-center select-none">EL4T-</span>
+                <input id="login-gc-pin" type="password" value="" autocomplete="off" onkeydown="handleLoginPinKeydown(event, 'mcgough')" placeholder="XXXX digits (e.g. 2026)" class="w-full px-3 py-2 font-mono text-slate-900 bg-white focus:outline-none" />
+              </div>
             </div>
           </div>
           <button type="button" onclick="submitMcGoughLogin()" class="w-full py-2.5 px-4 rounded-xl bg-red-700 hover:bg-red-600 text-white font-bold transition shadow-sm">Sign In: McGough Portal &rarr;</button>
@@ -102,11 +105,17 @@
 
             <div>
               <label for="login-ad-rep" class="block font-semibold text-slate-700 mb-1">Applied Digital Representative</label>
-              <select id="login-ad-rep" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-medium text-slate-900"></select>
+              <select id="login-ad-rep" onchange="handleLoginAdRepSelect(this.value)" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-medium text-slate-900">
+                <option value="fop-1" selected>Critical Facilities Ops Lead (Fac Ops)</option>
+                <option value="fop-2">Operations Engineering Manager (Fac Ops)</option>
+              </select>
             </div>
             <div>
-              <label for="login-ad-pin" class="block font-semibold text-slate-700 mb-1">Scoped Applied Digital PIN (Press Enter)</label>
-              <input id="login-ad-pin" type="password" value="" autocomplete="off" onkeydown="handleLoginPinKeydown(event, 'ad')" placeholder="Enter EL4T-XXXX PIN" class="w-full px-3 py-2 rounded-lg border border-slate-300 font-mono text-slate-900" />
+              <label for="login-ad-pin" class="block font-semibold text-slate-700 mb-1">Applied Digital PIN (Prefix Auto-Filled - Press Enter)</label>
+              <div class="flex items-stretch rounded-lg border border-slate-300 bg-white overflow-hidden">
+                <span id="login-ad-prefix-addon" class="px-3 py-2 bg-slate-100 border-r border-slate-300 font-mono font-bold text-indigo-800 flex items-center select-none">EL4T-</span>
+                <input id="login-ad-pin" type="password" value="" autocomplete="off" onkeydown="handleLoginPinKeydown(event, 'ad')" placeholder="XXXX digits" class="w-full px-3 py-2 font-mono text-slate-900 bg-white focus:outline-none" />
+              </div>
             </div>
           </div>
           <button type="button" onclick="submitAppliedDigitalLogin()" class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition shadow-sm">Sign In: Applied Digital Portal &rarr;</button>
@@ -119,14 +128,24 @@
               <span class="px-2.5 py-1 rounded-md bg-sky-100 text-sky-900 font-bold uppercase tracking-wider text-[11px]">3. Trade Partner</span>
               <span class="text-[11px] font-semibold text-slate-400">26 Contractors</span>
             </div>
-            <p class="text-slate-600">Scoped strictly to your company's WWP assignments, new lookahead proposals, and MOP drafts.</p>
+            <p class="text-slate-600">Scoped strictly to your company's WWP assignments, P6 schedule, work hours, MOPs, and PCOs.</p>
             <div>
               <label for="login-trade-org" class="block font-semibold text-slate-700 mb-1">Contractor Organization</label>
-              <select id="login-trade-org" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-semibold text-slate-900"></select>
+              <select id="login-trade-org" onchange="handleLoginTradeOrgSelect(this.value)" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-semibold text-slate-900">
+                <option value="HPC" selected>HPC - HPC Industrial</option>
+                <option value="Magnum">Magnum - Magnum Electric</option>
+                <option value="LoenBro">LoenBro - LoenBro</option>
+                <option value="Viking">Viking - Viking Automatic Sprinkler</option>
+                <option value="Custom Drywall">Custom Drywall - Custom Drywall</option>
+                <option value="Modern">Modern - Modern Piping / Sheet Metal</option>
+              </select>
             </div>
             <div>
-              <label for="login-trade-pin" class="block font-semibold text-slate-700 mb-1">Scoped Contractor PIN (Press Enter)</label>
-              <input id="login-trade-pin" type="password" value="" autocomplete="off" onkeydown="handleLoginPinKeydown(event, 'trade')" placeholder="Enter EL4T-XXX Code" class="w-full px-3 py-2 rounded-lg border border-slate-300 font-mono uppercase text-slate-900" />
+              <label for="login-trade-pin" class="block font-semibold text-slate-700 mb-1">Contractor PIN (Prefix Auto-Filled - Press Enter)</label>
+              <div class="flex items-stretch rounded-lg border border-slate-300 bg-white overflow-hidden">
+                <span id="login-trade-prefix-addon" class="px-3 py-2 bg-slate-100 border-r border-slate-300 font-mono font-bold text-sky-800 flex items-center select-none">EL4T-</span>
+                <input id="login-trade-pin" type="password" value="" autocomplete="off" onkeydown="handleLoginPinKeydown(event, 'trade')" placeholder="3-letter code (e.g. MAG)" class="w-full px-3 py-2 font-mono uppercase text-slate-900 bg-white focus:outline-none" />
+              </div>
             </div>
           </div>
           <button type="button" onclick="submitTradePartnerLogin()" class="w-full py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold transition shadow-sm">Sign In: Trade Partner Portal &rarr;</button>

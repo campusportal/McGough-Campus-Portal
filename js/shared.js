@@ -630,7 +630,7 @@ const INITIAL_CONST_REPS = [
 
 
 function createInitialMops(projectLabel) {
-  const projName = projectLabel || 'Ellendale Campus - Building 4 - TFO';
+  const projName = projectLabel || 'Polaris Forge 1 - ELN04 - TFO';
   return [
     {
       mopId: 'MOP-2026-101',
@@ -991,10 +991,17 @@ function getContractorAccessCode(orgCode, scopeObj) {
   return sc.prefix.toUpperCase() + '-' + getContractorPinSuffix(orgCode);
 }
 
-function pinMatchesExpected(enteredRaw, expectedWithHyphen) {
-  const a = normalizePinToken(enteredRaw).replace(/-/g, '');
-  const b = normalizePinToken(expectedWithHyphen).replace(/-/g, '');
-  return a.length > 0 && a === b;
+function pinMatchesExpected(enteredRaw, expectedWithHyphen, autoFilledPrefix) {
+  const rawClean = normalizePinToken(enteredRaw).replace(/-/g, '');
+  const fullClean = normalizePinToken(expectedWithHyphen).replace(/-/g, '');
+  if (!rawClean || !fullClean) return false;
+  if (rawClean === fullClean) return true;
+  // Since the project prefix (e.g. EL4T-) is auto-filled in the UI box, allow entering JUST the suffix (e.g. 2026 or MAG)!
+  if (autoFilledPrefix) {
+    const prefClean = normalizePinToken(autoFilledPrefix).replace(/-/g, '');
+    if (prefClean && (prefClean + rawClean) === fullClean) return true;
+  }
+  return false;
 }
 
 function loadScopeIntoState(scopeId, preserveSession) {
@@ -1008,6 +1015,10 @@ function loadScopeIntoState(scopeId, preserveSession) {
     authRole: state.authRole,
     gcAuthenticated: state.gcAuthenticated,
     clientAuthenticated: state.clientAuthenticated,
+    portalMode: state.portalMode,
+    gcTab: state.gcTab,
+    mopSubTab: state.mopSubTab,
+    meetingMode: state.meetingMode,
     selectedTradeOrg: state.selectedTradeOrg,
     portalForeman: state.portalForeman,
     activeApproverId: state.activeApproverId,
@@ -1016,7 +1027,8 @@ function loadScopeIntoState(scopeId, preserveSession) {
   };
 
   if (saved && typeof saved === 'object') {
-    state = Object.assign({}, base, saved);
+    const cleanSaved = (typeof stripSessionFields === 'function') ? stripSessionFields(saved) : saved;
+    state = Object.assign({}, base, cleanSaved);
     state.scopeId = scopeMeta.scopeId;
     // Upgrade legacy organizations so every org has its collision-free pinCode
     state.organizations = INITIAL_ORGANIZATIONS.map(function(defOrg) {
@@ -1079,14 +1091,25 @@ function loadScopeIntoState(scopeId, preserveSession) {
   }
 }
 
+function persistActiveTabViewToSession() {
+  if (!state.authenticated || !state.authRole) return;
+  const sess = StorageAdapter.loadActiveSession() || {};
+  sess.authenticated = true;
+  sess.scopeId = state.scopeId;
+  sess.role = state.authRole;
+  sess.portalMode = state.portalMode;
+  sess.gcTab = state.gcTab;
+  sess.mopSubTab = state.mopSubTab;
+  sess.activeApproverId = state.activeApproverId;
+  sess.activeClientApproverId = state.activeClientApproverId;
+  sess.activeClientConstId = state.activeClientConstId;
+  sess.selectedTradeOrg = state.selectedTradeOrg;
+  StorageAdapter.saveActiveSession(sess);
+}
+
 function saveState() {
-  const copy = Object.assign({}, state);
-  // Never persist unlocked auth flags into shared localStorage
-  delete copy.authenticated;
-  delete copy.authRole;
-  delete copy.gcAuthenticated;
-  delete copy.clientAuthenticated;
-  delete copy.meetingMode;
+  persistActiveTabViewToSession();
+  const copy = (typeof stripSessionFields === 'function') ? stripSessionFields(state) : Object.assign({}, state);
   StorageAdapter.saveScopeWorkspace(state.scopeId, copy);
 }
 
@@ -1106,9 +1129,13 @@ function restoreSessionOnBoot() {
       state.selectedTradeOrg = sess.selectedTradeOrg;
       state.portalForeman = getOrgByCode(sess.selectedTradeOrg).defaultForeman || '';
     }
+    if (sess.portalMode) state.portalMode = sess.portalMode;
+    if (sess.gcTab) state.gcTab = sess.gcTab;
+    if (sess.mopSubTab) state.mopSubTab = sess.mopSubTab;
     applyRoleDefaultView();
   } else {
-    loadScopeIntoState(projectScopes[0].scopeId, false);
+    const defSc = projectScopes.find(function(s) { return s.scopeId === 'el-b4-tfo'; }) || projectScopes[0];
+    loadScopeIntoState(defSc.scopeId, false);
   }
 }
 
@@ -1410,11 +1437,26 @@ function countPendingMops() {
 // =========================================================================
 // DEDICATED LOGIN GATE & MULTI-CAMPUS SCOPE SELECTOR (Blank PINs + Enter Key)
 // =========================================================================
+let loginSelectedGcApproverId = 'app-1';
+let loginSelectedAdRepId = 'fop-1';
+let loginSelectedTradeOrgCode = 'HPC';
+
+function handleLoginGcApproverSelect(val) {
+  if (val) loginSelectedGcApproverId = val;
+}
+
+function handleLoginAdRepSelect(val) {
+  if (val) loginSelectedAdRepId = val;
+}
+
+function handleLoginTradeOrgSelect(val) {
+  if (val) loginSelectedTradeOrgCode = val;
+}
+
 function populateLoginGateSelectors() {
   const campusSel = document.getElementById('login-campus-select');
-  const bldgSel = document.getElementById('login-building-select');
-  const scopeSel = document.getElementById('login-scope-select');
-  if (!campusSel || !bldgSel || !scopeSel) return;
+  const projSel = document.getElementById('login-project-select');
+  if (!campusSel || !projSel) return;
 
   const campuses = [];
   projectScopes.forEach(function(s) {
@@ -1426,106 +1468,90 @@ function populateLoginGateSelectors() {
     return '<option value="' + escapeHtml(c) + '"' + (c === activeSc.campus ? ' selected' : '') + '>' + escapeHtml(c) + '</option>';
   }).join('');
 
-  const inCampus = projectScopes.filter(function(s) { return s.campus === activeSc.campus; });
-  const buildings = [];
-  inCampus.forEach(function(s) {
-    if (buildings.indexOf(s.building) === -1) buildings.push(s.building);
-  });
+  let inCampus = projectScopes.filter(function(s) { return s.campus === activeSc.campus; });
+  if (inCampus.length === 0) inCampus = projectScopes.slice();
 
-  bldgSel.innerHTML = buildings.map(function(b) {
-    return '<option value="' + escapeHtml(b) + '"' + (b === activeSc.building ? ' selected' : '') + '>' + escapeHtml(b) + '</option>';
-  }).join('');
-
-  let inBldg = inCampus.filter(function(s) { return s.building === activeSc.building; });
-  if (inBldg.length === 0) {
-    projectScopes = StorageAdapter.loadScopesRegistry();
-    inBldg = projectScopes.filter(function(s) { return s.campus === activeSc.campus && s.building === activeSc.building; });
-    if (inBldg.length === 0) inBldg = projectScopes.slice(0, 2);
-  }
-  // Order cleanly: Base-Build and Tenant Fit-Out always present
-  inBldg.sort(function(a, b) {
-    if (a.scopeType === b.scopeType) return 0;
-    return a.scopeType === 'Tenant Fit-Out' ? -1 : 1;
-  });
-  scopeSel.innerHTML = inBldg.map(function(s) {
-    return '<option value="' + escapeHtml(s.scopeId) + '"' + (s.scopeId === activeSc.scopeId ? ' selected' : '') + '>' + escapeHtml(s.scopeType + ' (' + s.prefix + ')') + '</option>';
+  projSel.innerHTML = inCampus.map(function(s) {
+    const projDisplay = s.building + ' (' + s.prefix + '-)';
+    return '<option value="' + escapeHtml(s.scopeId) + '"' + (s.scopeId === activeSc.scopeId ? ' selected' : '') + '>' + escapeHtml(projDisplay) + '</option>';
   }).join('');
 
   const prefixBadge = document.getElementById('login-active-prefix-badge');
   if (prefixBadge) {
-    prefixBadge.textContent = 'Active Project Prefix: ' + activeSc.prefix + '-';
+    prefixBadge.textContent = 'Active Project Identifier: ' + activeSc.prefix + '-';
   }
 
-  // Populate role dropdowns for this scope without ever filling PIN inputs!
-  loadScopeIntoState(activeSc.scopeId, state.authenticated);
+  // Load selected project's personnel & contractor roster without resetting user's dropdown pick!
+  if (state.scopeId !== activeSc.scopeId) {
+    loadScopeIntoState(activeSc.scopeId, state.authenticated);
+  } else if (StorageAdapter && typeof StorageAdapter.watchScope === 'function') {
+    StorageAdapter.watchScope(activeSc.scopeId);
+  }
 
   const gcAppSel = document.getElementById('login-gc-approver');
   if (gcAppSel) {
-    gcAppSel.innerHTML = state.approvers.map(function(a) {
-      return '<option value="' + escapeHtml(a.id) + '">' + escapeHtml(a.name) + ' - ' + escapeHtml(a.role) + '</option>';
+    const curGc = gcAppSel.value || loginSelectedGcApproverId;
+    const approverList = (Array.isArray(state.approvers) && state.approvers.length > 0) ? state.approvers : INITIAL_APPROVERS;
+    if (approverList.some(function(a) { return a.id === curGc; })) {
+      loginSelectedGcApproverId = curGc;
+    } else if (approverList[0]) {
+      loginSelectedGcApproverId = approverList[0].id;
+    }
+    gcAppSel.innerHTML = approverList.map(function(a) {
+      return '<option value="' + escapeHtml(a.id) + '"' + (a.id === loginSelectedGcApproverId ? ' selected' : '') + '>' + escapeHtml(a.name + ' - ' + a.role) + '</option>';
     }).join('');
+    gcAppSel.value = loginSelectedGcApproverId;
   }
 
   renderLoginAdRepOptions();
 
   const trOrgSel = document.getElementById('login-trade-org');
   if (trOrgSel) {
-    const tradeOrgs = state.organizations.filter(function(o) { return !o.isGC; });
+    const curTr = trOrgSel.value || loginSelectedTradeOrgCode;
+    const orgSource = (Array.isArray(state.organizations) && state.organizations.length > 1) ? state.organizations : INITIAL_ORGANIZATIONS;
+    const tradeOrgs = orgSource.filter(function(o) { return !o.isGC; });
+    if (tradeOrgs.some(function(o) { return o.code === curTr; })) {
+      loginSelectedTradeOrgCode = curTr;
+    } else if (tradeOrgs[0]) {
+      loginSelectedTradeOrgCode = tradeOrgs[0].code;
+    }
     trOrgSel.innerHTML = tradeOrgs.map(function(o) {
-      return '<option value="' + escapeHtml(o.code) + '">' + escapeHtml(o.code) + ' - ' + escapeHtml(o.fullName) + '</option>';
+      return '<option value="' + escapeHtml(o.code) + '"' + (o.code === loginSelectedTradeOrgCode ? ' selected' : '') + '>' + escapeHtml(o.code + ' - ' + o.fullName) + '</option>';
     }).join('');
+    trOrgSel.value = loginSelectedTradeOrgCode;
   }
 
-  // Update placeholders with current prefix while keeping value strictly empty
+  // Update auto-filled prefix badges right inside all 3 PIN input boxes!
+  const prefText = activeSc.prefix + '-';
+  ['login-gc-prefix-addon', 'login-ad-prefix-addon', 'login-trade-prefix-addon'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = prefText;
+  });
+
   const gcPinInp = document.getElementById('login-gc-pin');
   const adPinInp = document.getElementById('login-ad-pin');
   const trPinInp = document.getElementById('login-trade-pin');
-  if (gcPinInp) {
-    gcPinInp.placeholder = 'Enter ' + activeSc.prefix + '-XXXX PIN';
-  }
-  if (adPinInp) {
-    adPinInp.placeholder = 'Enter ' + activeSc.prefix + '-XXXX PIN';
-  }
-  if (trPinInp) {
-    trPinInp.placeholder = 'Enter ' + activeSc.prefix + '-XXX Code';
-  }
+  if (gcPinInp) gcPinInp.placeholder = 'XXXX digits (e.g. 2026)';
+  if (adPinInp) adPinInp.placeholder = 'XXXX digits';
+  if (trPinInp) trPinInp.placeholder = '3-letter code (e.g. MAG)';
 }
 
 function handleLoginCampusChange(campusName) {
   const firstMatch = projectScopes.find(function(s) { return s.campus === campusName; });
   if (firstMatch) {
     loginSelectedScopeId = firstMatch.scopeId;
+    loadScopeIntoState(firstMatch.scopeId, state.authenticated);
     populateLoginGateSelectors();
   }
 }
 
-function handleLoginBuildingChange(bldgName) {
-  const campusName = document.getElementById('login-campus-select').value;
-  const firstMatch = projectScopes.find(function(s) {
-    return s.campus === campusName && s.building === bldgName;
-  });
-  if (firstMatch) {
-    loginSelectedScopeId = firstMatch.scopeId;
+function handleLoginProjectChange(scopeId) {
+  const found = projectScopes.find(function(s) { return s.scopeId === scopeId; });
+  if (found) {
+    loginSelectedScopeId = found.scopeId;
+    loadScopeIntoState(found.scopeId, state.authenticated);
     populateLoginGateSelectors();
   }
-}
-
-function handleLoginScopeChange(scopeIdOrType) {
-  const direct = projectScopes.find(function(s) { return s.scopeId === scopeIdOrType; });
-  if (direct) {
-    loginSelectedScopeId = direct.scopeId;
-  } else {
-    const campusEl = document.getElementById('login-campus-select');
-    const bldgEl = document.getElementById('login-building-select');
-    const cVal = campusEl ? campusEl.value : 'Ellendale Campus';
-    const bVal = bldgEl ? bldgEl.value : 'Building 4';
-    const normType = normalizeScopeTypeLabel(scopeIdOrType);
-    const byType = projectScopes.find(function(s) {
-      return s.campus === cVal && s.building === bVal && normalizeScopeTypeLabel(s.scopeType) === normType;
-    });
-    if (byType) loginSelectedScopeId = byType.scopeId;
-  }
-  populateLoginGateSelectors();
 }
 
 function setLoginAdSubRole(subRole) {
@@ -1552,14 +1578,23 @@ function setLoginAdSubRole(subRole) {
 function renderLoginAdRepOptions() {
   const sel = document.getElementById('login-ad-rep');
   if (!sel) return;
+  const curVal = sel.value || loginSelectedAdRepId;
   if (loginAdSubRole === 'facops') {
-    sel.innerHTML = state.clientApprovers.map(function(c) {
-      return '<option value="' + escapeHtml(c.id) + '">' + escapeHtml(c.name) + ' (Fac Ops)</option>';
+    const list = (Array.isArray(state.clientApprovers) && state.clientApprovers.length > 0) ? state.clientApprovers : INITIAL_FACOPS_APPROVERS;
+    if (list.some(function(c) { return c.id === curVal; })) loginSelectedAdRepId = curVal;
+    else if (list[0]) loginSelectedAdRepId = list[0].id;
+    sel.innerHTML = list.map(function(c) {
+      return '<option value="' + escapeHtml(c.id) + '"' + (c.id === loginSelectedAdRepId ? ' selected' : '') + '>' + escapeHtml(c.name + ' (Fac Ops)') + '</option>';
     }).join('');
+    sel.value = loginSelectedAdRepId;
   } else {
-    sel.innerHTML = state.clientConstReps.map(function(c) {
-      return '<option value="' + escapeHtml(c.id) + '">' + escapeHtml(c.name) + ' (Construction)</option>';
+    const list = (Array.isArray(state.clientConstReps) && state.clientConstReps.length > 0) ? state.clientConstReps : INITIAL_CONST_REPS;
+    if (list.some(function(c) { return c.id === curVal; })) loginSelectedAdRepId = curVal;
+    else if (list[0]) loginSelectedAdRepId = list[0].id;
+    sel.innerHTML = list.map(function(c) {
+      return '<option value="' + escapeHtml(c.id) + '"' + (c.id === loginSelectedAdRepId ? ' selected' : '') + '>' + escapeHtml(c.name + ' (Construction)') + '</option>';
     }).join('');
+    sel.value = loginSelectedAdRepId;
   }
 }
 
@@ -1574,6 +1609,9 @@ function handleLoginPinKeydown(event, roleTarget) {
 }
 
 function findOtherScopeMatchingPin(enteredRaw, roleType, orgCode) {
+  // Only check explicit full-prefix entries (e.g. EL3B-2026) against other scopes
+  const cleanEntered = normalizePinToken(enteredRaw).replace(/-/g, '');
+  if (cleanEntered.length <= 4) return null;
   for (let i = 0; i < projectScopes.length; i++) {
     const sc = projectScopes[i];
     if (sc.scopeId === loginSelectedScopeId) continue;
@@ -1583,41 +1621,45 @@ function findOtherScopeMatchingPin(enteredRaw, roleType, orgCode) {
     else if (roleType === 'facops') candidate = sc.prefix + '-' + (saved.facOpsPasscodeSuffix || '2027');
     else if (roleType === 'construction') candidate = sc.prefix + '-' + (saved.constPasscodeSuffix || '2028');
     else if (roleType === 'trade') candidate = sc.prefix + '-' + getContractorPinSuffix(orgCode);
-    if (pinMatchesExpected(enteredRaw, candidate)) return sc;
+    if (pinMatchesExpected(enteredRaw, candidate, null)) return sc;
   }
   return null;
 }
 
 function submitMcGoughLogin() {
+  const appSel = document.getElementById('login-gc-approver');
+  const chosenApproverId = (appSel && appSel.value) ? appSel.value : loginSelectedGcApproverId;
   const scopeMeta = getScopeById(loginSelectedScopeId);
   loadScopeIntoState(scopeMeta.scopeId, false);
   const pinInp = document.getElementById('login-gc-pin');
   const entered = pinInp ? pinInp.value : '';
   const expected = getExpectedMcGoughPin(scopeMeta);
 
-  if (!pinMatchesExpected(entered, expected)) {
+  if (!pinMatchesExpected(entered, expected, scopeMeta.prefix)) {
     const otherScope = findOtherScopeMatchingPin(entered, 'mcgough', null);
     if (otherScope) {
-      showToast('That PIN belongs to ' + otherScope.label + '. Switch project above or use ' + scopeMeta.prefix + '- prefix.', 'error');
+      showToast('That PIN belongs to ' + otherScope.label + '. Switch 2. Project above first.', 'error');
     } else {
-      showToast('Invalid McGough PIN for ' + scopeMeta.label + ' (requires ' + scopeMeta.prefix + '- prefix).', 'error');
+      showToast('Invalid McGough PIN for ' + scopeMeta.label + '.', 'error');
     }
     return;
   }
 
-  const appSel = document.getElementById('login-gc-approver');
-  state.activeApproverId = appSel ? appSel.value : state.activeApproverId;
+  state.activeApproverId = chosenApproverId || state.activeApproverId;
   state.authenticated = true;
   state.authRole = 'mcgough';
   state.gcAuthenticated = true;
   state.clientAuthenticated = false;
   state.portalMode = 'gc';
+  state.gcTab = 'lookahead';
   if (pinInp) pinInp.value = '';
 
   StorageAdapter.saveActiveSession({
     authenticated: true,
     scopeId: scopeMeta.scopeId,
     role: 'mcgough',
+    portalMode: 'gc',
+    gcTab: 'lookahead',
     activeApproverId: state.activeApproverId
   });
   saveState();
@@ -1631,24 +1673,25 @@ function submitMcGoughLogin() {
 }
 
 function submitAppliedDigitalLogin() {
+  const repSel = document.getElementById('login-ad-rep');
+  const chosenRepId = (repSel && repSel.value) ? repSel.value : loginSelectedAdRepId;
   const scopeMeta = getScopeById(loginSelectedScopeId);
   loadScopeIntoState(scopeMeta.scopeId, false);
   const pinInp = document.getElementById('login-ad-pin');
   const entered = pinInp ? pinInp.value : '';
-  const repSel = document.getElementById('login-ad-rep');
 
   if (loginAdSubRole === 'facops') {
     const expected = getExpectedFacOpsPin(scopeMeta);
-    if (!pinMatchesExpected(entered, expected)) {
+    if (!pinMatchesExpected(entered, expected, scopeMeta.prefix)) {
       const otherScope = findOtherScopeMatchingPin(entered, 'facops', null);
       if (otherScope) {
-        showToast('That Fac Ops PIN is for ' + otherScope.label + '. Select that project above or use ' + scopeMeta.prefix + '-.', 'error');
+        showToast('That Fac Ops PIN is for ' + otherScope.label + '. Switch 2. Project above first.', 'error');
       } else {
         showToast('Invalid Applied Digital Fac Ops PIN for ' + scopeMeta.label + '.', 'error');
       }
       return;
     }
-    state.activeClientApproverId = repSel ? repSel.value : state.activeClientApproverId;
+    state.activeClientApproverId = chosenRepId || state.activeClientApproverId;
     state.authenticated = true;
     state.authRole = 'client_facops';
     state.clientAuthenticated = true;
@@ -1661,6 +1704,8 @@ function submitAppliedDigitalLogin() {
       authenticated: true,
       scopeId: scopeMeta.scopeId,
       role: 'client_facops',
+      portalMode: 'mop',
+      mopSubTab: 'queue',
       activeClientApproverId: state.activeClientApproverId
     });
     saveState();
@@ -1673,28 +1718,31 @@ function submitAppliedDigitalLogin() {
     showToast('Signed in as Applied Digital Fac Ops (' + getActiveClientApprover().name + ') - MOP Approval Queue.', 'success');
   } else {
     const expected = getExpectedConstPin(scopeMeta);
-    if (!pinMatchesExpected(entered, expected)) {
+    if (!pinMatchesExpected(entered, expected, scopeMeta.prefix)) {
       const otherScope = findOtherScopeMatchingPin(entered, 'construction', null);
       if (otherScope) {
-        showToast('That Construction PIN is for ' + otherScope.label + '. Select that project above or use ' + scopeMeta.prefix + '-.', 'error');
+        showToast('That Construction PIN is for ' + otherScope.label + '. Switch 2. Project above first.', 'error');
       } else {
         showToast('Invalid Applied Digital Construction PIN for ' + scopeMeta.label + '.', 'error');
       }
       return;
     }
-    state.activeClientConstId = repSel ? repSel.value : state.activeClientConstId;
+    state.activeClientConstId = chosenRepId || state.activeClientConstId;
     state.authenticated = true;
     state.authRole = 'client_const';
     state.clientAuthenticated = true;
     state.gcAuthenticated = false;
     state.portalMode = 'mop';
     state.mopSubTab = 'queue';
+    state.gcTab = 'lookahead';
     if (pinInp) pinInp.value = '';
 
     StorageAdapter.saveActiveSession({
       authenticated: true,
       scopeId: scopeMeta.scopeId,
       role: 'client_const',
+      portalMode: 'mop',
+      gcTab: 'lookahead',
       activeClientConstId: state.activeClientConstId
     });
     saveState();
@@ -1709,18 +1757,18 @@ function submitAppliedDigitalLogin() {
 }
 
 function submitTradePartnerLogin() {
+  const orgSel = document.getElementById('login-trade-org');
+  const orgCode = (orgSel && orgSel.value) ? orgSel.value : (loginSelectedTradeOrgCode || 'Magnum');
   const scopeMeta = getScopeById(loginSelectedScopeId);
   loadScopeIntoState(scopeMeta.scopeId, false);
-  const orgSel = document.getElementById('login-trade-org');
-  const orgCode = orgSel ? orgSel.value : 'Magnum';
   const pinInp = document.getElementById('login-trade-pin');
   const entered = pinInp ? pinInp.value : '';
   const expected = getContractorAccessCode(orgCode, scopeMeta);
 
-  if (!pinMatchesExpected(entered, expected)) {
+  if (!pinMatchesExpected(entered, expected, scopeMeta.prefix)) {
     const otherScope = findOtherScopeMatchingPin(entered, 'trade', orgCode);
     if (otherScope) {
-      showToast('That code belongs to ' + otherScope.label + '. Select that scope or use ' + scopeMeta.prefix + '-.', 'error');
+      showToast('That code belongs to ' + otherScope.label + '. Switch 2. Project above first.', 'error');
     } else {
       showToast('Invalid Trade Access Code for ' + orgCode + ' on ' + scopeMeta.label + '.', 'error');
     }
@@ -1741,6 +1789,7 @@ function submitTradePartnerLogin() {
     authenticated: true,
     scopeId: scopeMeta.scopeId,
     role: 'trade',
+    portalMode: 'trade',
     selectedTradeOrg: orgCode
   });
   saveState();
@@ -1888,7 +1937,7 @@ function renderAll() {
     mcScopeWrap.classList.toggle('hidden', !isMc);
     if (isMc) {
       mcScopeSel.innerHTML = projectScopes.map(function(s) {
-        return '<option value="' + escapeHtml(s.scopeId) + '"' + (s.scopeId === state.scopeId ? ' selected' : '') + '>' + escapeHtml(s.prefix + ' - ' + s.building + ' ' + s.scopeType) + '</option>';
+        return '<option value="' + escapeHtml(s.scopeId) + '"' + (s.scopeId === state.scopeId ? ' selected' : '') + '>' + escapeHtml(s.prefix + ' - ' + s.campus + ' | ' + s.building) + '</option>';
       }).join('');
     }
   }
@@ -2517,17 +2566,16 @@ function openApproversModal() {
       '<h3 class="text-base font-bold text-slate-900">Campuses, Project Scopes, Approvers &amp; PINs</h3>' +
       '<p class="text-slate-600 mt-0.5">Active Scope: <strong>' + escapeHtml(activeScope.label) + ' (' + escapeHtml(activeScope.prefix) + '-)</strong></p>' +
 
-      // Section 1: Multi-Campus & Building Scope Builder
+      // Section 1: Multi-Campus & Project Builder
       '<div class="mt-4 p-3.5 rounded-xl border border-slate-300 bg-slate-100">' +
-        '<div class="font-bold uppercase tracking-wider text-slate-800 mb-2">1. Multi-Campus / Building / Project Scopes (Base Build &amp; TFO)</div>' +
+        '<div class="font-bold uppercase tracking-wider text-slate-800 mb-2">1. Campuses &amp; Projects (Polaris Forge 1 / ELN03 / ELN04)</div>' +
         '<div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mb-3">' + scopeRows + '</div>' +
-        '<div class="grid grid-cols-1 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-300">' +
-          '<input id="new-scope-campus" type="text" placeholder="Campus (e.g. Ellendale)" class="px-2.5 py-1.5 rounded border border-slate-300 bg-white" />' +
-          '<input id="new-scope-bldg" type="text" placeholder="Building (e.g. Building 5)" class="px-2.5 py-1.5 rounded border border-slate-300 bg-white" />' +
-          '<select id="new-scope-type" class="px-2.5 py-1.5 rounded border border-slate-300 bg-white font-semibold"><option value="Tenant Fit-Out">Tenant Fit-Out</option><option value="Base-Build">Base-Build</option></select>' +
+        '<div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-300">' +
+          '<input id="new-scope-campus" type="text" value="Polaris Forge 1" placeholder="Campus (e.g. Polaris Forge 1)" class="px-2.5 py-1.5 rounded border border-slate-300 bg-white" />' +
+          '<input id="new-scope-bldg" type="text" placeholder="Project (e.g. ELN05 or ELN05 - TFO)" class="px-2.5 py-1.5 rounded border border-slate-300 bg-white" />' +
           '<div class="flex gap-1.5">' +
-            '<input id="new-scope-prefix" type="text" placeholder="Prefix (EL5T)" class="w-24 px-2 py-1.5 rounded border border-slate-300 bg-white font-mono uppercase" />' +
-            '<button type="button" onclick="addNewProjectScope()" class="flex-1 px-2.5 py-1.5 rounded bg-slate-900 text-white font-semibold">+ Add</button>' +
+            '<input id="new-scope-prefix" type="text" placeholder="Prefix (EL5T)" class="w-28 px-2 py-1.5 rounded border border-slate-300 bg-white font-mono uppercase" />' +
+            '<button type="button" onclick="addNewProjectScope()" class="flex-1 px-2.5 py-1.5 rounded bg-slate-900 text-white font-semibold">+ Add Project</button>' +
           '</div>' +
         '</div>' +
       '</div>' +
@@ -2577,10 +2625,9 @@ function openApproversModal() {
 function addNewProjectScope() {
   const campus = (document.getElementById('new-scope-campus').value || '').trim();
   const bldg = (document.getElementById('new-scope-bldg').value || '').trim();
-  const scopeType = normalizeScopeTypeLabel(document.getElementById('new-scope-type').value || 'Tenant Fit-Out');
   const prefRaw = (document.getElementById('new-scope-prefix').value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (!campus || !bldg || prefRaw.length < 2) {
-    showToast('Enter Campus, Building, and a 2-6 character PIN prefix (e.g. EL5T).', 'error');
+    showToast('Enter Campus, Project name, and a 2-6 character PIN prefix (e.g. EL5T).', 'error');
     return;
   }
   if (projectScopes.some(function(s) { return s.prefix.toUpperCase() === prefRaw; })) {
@@ -2594,9 +2641,9 @@ function addNewProjectScope() {
     campusCode: prefRaw.slice(0, 2),
     building: bldg,
     buildingCode: bldg,
-    scopeType: scopeType,
+    scopeType: '',
     prefix: prefRaw,
-    label: campus + ' - ' + bldg + ' - ' + scopeType,
+    label: campus + ' - ' + bldg,
     hasBaselineSeed: false
   };
   projectScopes.push(entry);
@@ -2864,7 +2911,7 @@ function isUserTypingInField() {
   if (!el || !el.tagName) return false;
   if (el.id && el.id.indexOf('cloud-cfg-') === 0) return true;
   const tag = el.tagName.toUpperCase();
-  if (tag === 'TEXTAREA') return true;
+  if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
   if (tag === 'INPUT') {
     const t = String(el.type || 'text').toLowerCase();
     return ['text', 'number', 'date', 'time', 'email', 'tel', 'password', 'search', 'url'].indexOf(t) !== -1;
@@ -2896,14 +2943,14 @@ function handleRemoteWorkspaceSync(scopeId, remotePayload) {
   const keepPortalMode = state.portalMode;
   const keepMopSubTab = state.mopSubTab;
   const keepMeetingMode = state.meetingMode;
-  const keepGcSubTab = state.gcSubTab;
+  const keepGcTab = state.gcTab;
 
   loadScopeIntoState(scopeId, state.authenticated);
   if (state.authenticated) {
     state.portalMode = keepPortalMode;
     state.mopSubTab = keepMopSubTab;
     state.meetingMode = keepMeetingMode;
-    if (keepGcSubTab) state.gcSubTab = keepGcSubTab;
+    if (keepGcTab) state.gcTab = keepGcTab;
   }
 
   if (isUserTypingInField()) {

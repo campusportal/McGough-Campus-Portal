@@ -16,127 +16,120 @@ const DEFAULT_FIREBASE_CONFIG = {
   appId: "1:740255904063:web:ff602a84d87946fb0a238a"
 };
 
-const CAMPUS_REGISTRY_KEY = 'wwp_tfo4_campus_registry_v2';
+const CAMPUS_REGISTRY_KEY = 'wwp_pf1_campus_registry_v3';
+const FIRESTORE_REGISTRY_DOC = 'campus_registry_v3';
 const ACTIVE_SESSION_KEY = 'wwp_tfo4_active_session_v2';
 const WORKSPACE_PREFIX = 'wwp_tfo4_scope_v2_';
 const FIREBASE_BROWSER_CONFIG_KEY = 'wwp_tfo4_firebase_config_v2';
 
+const SESSION_ONLY_KEYS = [
+  'authenticated', 'authRole', 'gcAuthenticated', 'clientAuthenticated',
+  'portalMode', 'gcTab', 'mopSubTab', 'meetingMode',
+  'selectedTradeOrg', 'portalForeman', 'portalStagedItems',
+  'activeApproverId', 'activeClientApproverId', 'activeClientConstId',
+  'showHiddenEarly'
+];
+
+function stripSessionFields(rawObj) {
+  if (!rawObj || typeof rawObj !== 'object') return rawObj;
+  const clean = Object.assign({}, rawObj);
+  SESSION_ONLY_KEYS.forEach(function(k) {
+    delete clean[k];
+  });
+  return clean;
+}
+
 const DEFAULT_PROJECT_SCOPES = [
   {
-    scopeId: 'el-b4-tfo',
-    campus: 'Ellendale Campus',
-    campusCode: 'EL',
-    building: 'Building 4',
-    buildingCode: '4',
-    scopeType: 'Tenant Fit-Out',
-    prefix: 'EL4T',
-    label: 'Ellendale Campus - Building 4 - Tenant Fit-Out',
-    hasBaselineSeed: true
+    scopeId: 'eln03',
+    campus: 'Polaris Forge 1',
+    campusCode: 'PF1',
+    building: 'ELN03',
+    buildingCode: 'ELN03',
+    scopeType: '',
+    prefix: 'EL3B',
+    label: 'Polaris Forge 1 - ELN03',
+    hasBaselineSeed: false
+  },
+  {
+    scopeId: 'eln03-tfo',
+    campus: 'Polaris Forge 1',
+    campusCode: 'PF1',
+    building: 'ELN03 - TFO',
+    buildingCode: 'ELN03-TFO',
+    scopeType: '',
+    prefix: 'EL3T',
+    label: 'Polaris Forge 1 - ELN03 - TFO',
+    hasBaselineSeed: false
   },
   {
     scopeId: 'el-b4-bb',
-    campus: 'Ellendale Campus',
-    campusCode: 'EL',
-    building: 'Building 4',
-    buildingCode: '4',
-    scopeType: 'Base-Build',
+    campus: 'Polaris Forge 1',
+    campusCode: 'PF1',
+    building: 'ELN04',
+    buildingCode: 'ELN04',
+    scopeType: '',
     prefix: 'EL4B',
-    label: 'Ellendale Campus - Building 4 - Base-Build',
+    label: 'Polaris Forge 1 - ELN04',
     hasBaselineSeed: false
   },
   {
-    scopeId: 'el-b1-tfo',
-    campus: 'Ellendale Campus',
-    campusCode: 'EL',
-    building: 'Building 1',
-    buildingCode: '1',
-    scopeType: 'Tenant Fit-Out',
-    prefix: 'EL1T',
-    label: 'Ellendale Campus - Building 1 - Tenant Fit-Out',
-    hasBaselineSeed: false
-  },
-  {
-    scopeId: 'el-b1-bb',
-    campus: 'Ellendale Campus',
-    campusCode: 'EL',
-    building: 'Building 1',
-    buildingCode: '1',
-    scopeType: 'Base-Build',
-    prefix: 'EL1B',
-    label: 'Ellendale Campus - Building 1 - Base-Build',
-    hasBaselineSeed: false
+    scopeId: 'el-b4-tfo',
+    campus: 'Polaris Forge 1',
+    campusCode: 'PF1',
+    building: 'ELN04 - TFO',
+    buildingCode: 'ELN04-TFO',
+    scopeType: '',
+    prefix: 'EL4T',
+    label: 'Polaris Forge 1 - ELN04 - TFO',
+    hasBaselineSeed: true
   }
 ];
 
-function normalizeScopeTypeLabel(rawType) {
-  const s = String(rawType || '').trim().toLowerCase();
-  if (s === 'base build' || s === 'base-build' || s === 'basebuild' || s === 'bb') return 'Base-Build';
-  return 'Tenant Fit-Out';
-}
-
 function normalizeAndEnsureDualScopes(list) {
-  const valid = [];
+  const byId = {};
+  DEFAULT_PROJECT_SCOPES.forEach(function(defSc) {
+    byId[defSc.scopeId] = JSON.parse(JSON.stringify(defSc));
+  });
+
+  const extra = [];
   (Array.isArray(list) ? list : []).forEach(function(item) {
     if (!item || typeof item !== 'object') return;
-    const campus = String(item.campus || 'Ellendale Campus').trim() || 'Ellendale Campus';
-    const building = String(item.building || 'Building 4').trim() || 'Building 4';
-    const scopeType = normalizeScopeTypeLabel(item.scopeType);
-    const prefix = String(item.prefix || 'EL4T').trim().toUpperCase();
-    const scopeId = String(item.scopeId || (prefix.toLowerCase())).trim();
-    valid.push({
-      scopeId: scopeId,
-      campus: campus,
-      campusCode: item.campusCode || prefix.slice(0, 2) || 'EL',
-      building: building,
-      buildingCode: item.buildingCode || building.replace(/[^0-9A-Za-z]/g, '').slice(-1) || '4',
-      scopeType: scopeType,
-      prefix: prefix,
-      label: campus + ' - ' + building + ' - ' + scopeType,
-      hasBaselineSeed: Boolean(item.hasBaselineSeed || scopeId === 'el-b4-tfo')
-    });
-  });
-
-  DEFAULT_PROJECT_SCOPES.forEach(function(defSc) {
-    if (!valid.some(function(v) { return v.scopeId === defSc.scopeId; })) {
-      valid.push(JSON.parse(JSON.stringify(defSc)));
+    const rawId = String(item.scopeId || '').trim();
+    // Skip legacy Building 1 IDs superseded by ELN03 / ELN03 - TFO
+    if (rawId === 'el-b1-bb' || rawId === 'el-b1-tfo') return;
+    if (byId[rawId]) {
+      // Always enforce canonical Polaris Forge 1 & ELN03/ELN04 naming on built-in IDs
+      return;
     }
-  });
-
-  const pairs = [];
-  valid.forEach(function(v) {
-    const key = v.campus + '||' + v.building;
-    if (pairs.indexOf(key) === -1) pairs.push(key);
-  });
-  pairs.forEach(function(key) {
-    const parts = key.split('||');
-    const cName = parts[0];
-    const bName = parts[1];
-    const existingInPair = valid.filter(function(v) { return v.campus === cName && v.building === bName; });
-    ['Tenant Fit-Out', 'Base-Build'].forEach(function(reqType) {
-      if (!existingInPair.some(function(v) { return v.scopeType === reqType; })) {
-        const ref = existingInPair[0];
-        const basePref = (ref ? ref.prefix.slice(0, -1) : (cName.slice(0, 2) + bName.replace(/[^0-9A-Za-z]/g, '').slice(-1))).toUpperCase() || 'PRJ';
-        let candPref = basePref + (reqType === 'Base-Build' ? 'B' : 'T');
-        let suffixNum = 2;
-        while (valid.some(function(v) { return v.prefix.toUpperCase() === candPref; })) {
-          candPref = basePref + (reqType === 'Base-Build' ? 'B' : 'T') + suffixNum;
-          suffixNum++;
-        }
-        valid.push({
-          scopeId: candPref.toLowerCase() + '-auto',
-          campus: cName,
-          campusCode: basePref.slice(0, 2),
-          building: bName,
-          buildingCode: bName,
-          scopeType: reqType,
-          prefix: candPref,
-          label: cName + ' - ' + bName + ' - ' + reqType,
-          hasBaselineSeed: false
-        });
-      }
+    let campus = String(item.campus || 'Polaris Forge 1').trim() || 'Polaris Forge 1';
+    if (campus.toLowerCase() === 'ellendale campus' || campus.toLowerCase() === 'ellendale') {
+      campus = 'Polaris Forge 1';
+    }
+    const projectTitle = String(item.building || item.project || '').trim();
+    const prefix = String(item.prefix || '').trim().toUpperCase();
+    if (!projectTitle || !prefix) return;
+    // Skip legacy auto-generated Building 1/4 entries
+    if (projectTitle === 'Building 4' || projectTitle === 'Building 1') return;
+    extra.push({
+      scopeId: rawId || prefix.toLowerCase(),
+      campus: campus,
+      campusCode: item.campusCode || prefix.slice(0, 2),
+      building: projectTitle,
+      buildingCode: projectTitle,
+      scopeType: '',
+      prefix: prefix,
+      label: campus + ' - ' + projectTitle,
+      hasBaselineSeed: Boolean(item.hasBaselineSeed)
     });
   });
-  return valid;
+
+  return [
+    byId['eln03'],
+    byId['eln03-tfo'],
+    byId['el-b4-bb'],
+    byId['el-b4-tfo']
+  ].concat(extra);
 }
 
 function parseFirebaseConfigText(rawText) {
@@ -175,6 +168,7 @@ const StorageAdapter = {
   unsubRegistry: null,
   unsubWorkspace: null,
   watchedScopeId: null,
+  lastAppliedMs: {},
   saveTimers: {},
   clientInstanceId: 'cl_' + Math.random().toString(36).slice(2, 10) + '_' + Date.now(),
   onRemoteRegistry: null,
@@ -331,7 +325,7 @@ const StorageAdapter = {
     if (!self.db) return;
     if (self.unsubRegistry) { try { self.unsubRegistry(); } catch (e) {} }
     try {
-      self.unsubRegistry = self.db.collection('portal_meta').doc('campus_registry').onSnapshot(
+      self.unsubRegistry = self.db.collection('portal_meta').doc(FIRESTORE_REGISTRY_DOC).onSnapshot(
         function(snap) {
           if (!snap.exists) {
             const currentScopes = self.loadScopesRegistry();
@@ -360,6 +354,10 @@ const StorageAdapter = {
   watchScope: function(scopeId) {
     const self = this;
     if (!scopeId) return;
+    // CRITICAL: Never tear down & recreate an active listener for the same scopeId (prevents infinite onSnapshot loop!)
+    if (self.watchedScopeId === scopeId && self.unsubWorkspace) {
+      return;
+    }
     self.watchedScopeId = scopeId;
     if (!self.db || self.driver !== 'firestore') return;
     if (self.unsubWorkspace) { try { self.unsubWorkspace(); } catch (e) {} self.unsubWorkspace = null; }
@@ -373,7 +371,7 @@ const StorageAdapter = {
               seedPayload = self.onSeedRequired(scopeId);
             }
             if (seedPayload) {
-              self.pushScopeWorkspaceNow(scopeId, seedPayload);
+              self.pushScopeWorkspaceNow(scopeId, stripSessionFields(seedPayload));
             } else {
               self.lastSyncedAt = self.stampNowTime();
               self.setStatus('live', 'Connected to Cloud Firestore (' + self.cloudConfig.projectId + ')');
@@ -384,13 +382,24 @@ const StorageAdapter = {
           self.lastSyncedAt = self.stampNowTime();
           self.setStatus('live', 'Live sync active (' + self.cloudConfig.projectId + ') at ' + self.lastSyncedAt);
 
-          if (docData.clientInstanceId === self.clientInstanceId) return;
+          if (docData.clientInstanceId === self.clientInstanceId) {
+            if (docData.updatedAtMs) self.lastAppliedMs[scopeId] = docData.updatedAtMs;
+            return;
+          }
+          if (docData.updatedAtMs && self.lastAppliedMs[scopeId] === docData.updatedAtMs) {
+            return;
+          }
+          if (docData.updatedAtMs) {
+            self.lastAppliedMs[scopeId] = docData.updatedAtMs;
+          }
+
           if (docData.payload && typeof docData.payload === 'object') {
+            const sanitized = stripSessionFields(docData.payload);
             try {
-              localStorage.setItem(WORKSPACE_PREFIX + scopeId, JSON.stringify(docData.payload));
+              localStorage.setItem(WORKSPACE_PREFIX + scopeId, JSON.stringify(sanitized));
             } catch (e) {}
             if (typeof self.onRemoteWorkspace === 'function') {
-              self.onRemoteWorkspace(scopeId, docData.payload, docData);
+              self.onRemoteWorkspace(scopeId, sanitized, docData);
             }
           }
         },
@@ -407,7 +416,7 @@ const StorageAdapter = {
     const self = this;
     if (!self.db || self.driver !== 'firestore') return Promise.resolve(false);
     try {
-      return self.db.collection('portal_meta').doc('campus_registry').set({
+      return self.db.collection('portal_meta').doc(FIRESTORE_REGISTRY_DOC).set({
         scopes: scopesList,
         updatedAtMs: Date.now(),
         updatedAtIso: new Date().toISOString(),
@@ -431,10 +440,12 @@ const StorageAdapter = {
     if (!self.db || self.driver !== 'firestore' || !scopeId || !payload) return Promise.resolve(false);
     self.setStatus('syncing', 'Syncing ' + scopeId + ' to Cloud Firestore...');
     try {
-      const cleanPayload = JSON.parse(JSON.stringify(payload));
+      const cleanPayload = JSON.parse(JSON.stringify(stripSessionFields(payload)));
+      const nowMs = Date.now();
+      self.lastAppliedMs[scopeId] = nowMs;
       return self.db.collection('portal_workspaces').doc(scopeId).set({
         scopeId: scopeId,
-        updatedAtMs: Date.now(),
+        updatedAtMs: nowMs,
         updatedAtIso: new Date().toISOString(),
         clientInstanceId: self.clientInstanceId,
         payload: cleanPayload
@@ -515,7 +526,7 @@ const StorageAdapter = {
   saveScopeWorkspace: function(scopeId, payload) {
     const self = this;
     try {
-      localStorage.setItem(WORKSPACE_PREFIX + scopeId, JSON.stringify(payload));
+      localStorage.setItem(WORKSPACE_PREFIX + scopeId, JSON.stringify(stripSessionFields(payload)));
     } catch (err) {
       // Ignore storage write errors
     }

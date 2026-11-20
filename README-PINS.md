@@ -11,13 +11,13 @@ Upload all files and folders directly into the root of your repository:
 - `js/storage.js`, `js/shared.js`, `js/notifications.js`, `js/p6.js`, `js/pco.js`, `js/wwp.js`, `js/mop.js`, `js/trade-portal.js`
 
 ## 2. Default Pre-Loaded Project Prefixes
-- `EL4T-` : Ellendale Campus - Building 4 - TFO (Pre-loaded with 44 Week 11 tasks & 2 MOPs)
-- `EL4B-` : Ellendale Campus - Building 4 - Base Build
-- `EL1T-` : Ellendale Campus - Building 1 - TFO
-- `EL1B-` : Ellendale Campus - Building 1 - Base Build
+- `EL4T-` : Polaris Forge 1 - ELN04 - TFO (Pre-loaded with 44 Week 11 tasks & 2 MOPs)
+- `EL4B-` : Polaris Forge 1 - ELN04
+- `EL3T-` : Polaris Forge 1 - ELN03 - TFO
+- `EL3B-` : Polaris Forge 1 - ELN03
 *(McGough can add new Campuses, Buildings, and Prefixes anytime under Campuses & Approvers.)*
 
-## 3. Scoped PIN Reference (Replace `EL4T` with `EL4B`, `EL1T`, or `EL1B` for other scopes)
+## 3. Scoped PIN Reference (Replace `EL4T` with `EL4B`, `EL3T`, or `EL3B` for other scopes)
 ### Management & Client Portals
 - **McGough Construction**: `EL4T-2026`
 - **Applied Digital - Fac Ops (MOP Approvals ONLY)**: `EL4T-2027`
