@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trade Partner Scoped Portal - WWP, P6, MOPs & PCOs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <script>
+    window.MCGOUGH_MULTIPAGE = true;
+    window.MCGOUGH_PAGE_ID = 'trade';
+  </script>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-red-100 selection:text-red-900">
+  <!-- Role-Isolated Top Portal Navigation Bar -->
+  <header id="portal-header" class="hidden bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-40 shadow-sm no-print">
+    <div class="max-w-[1600px] mx-auto px-3 sm:px-5 py-2.5 flex flex-wrap items-center justify-between gap-2.5">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-red-700 flex items-center justify-center font-bold text-lg tracking-tight border border-red-500/40 shrink-0">M</div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 id="header-portal-title" class="font-bold text-sm sm:text-base tracking-tight text-white">Ellendale Portal</h1>
+            <span id="header-scope-badge" class="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-amber-300 border border-slate-700">EL4T | Ellendale Campus - Building 4 - TFO</span>
+            <span id="planning-week-label" class="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">Planning Week 11</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Strictly Scoped Navigation Controls Rendered Per Role -->
+      <div id="role-center-nav" class="flex flex-wrap items-center bg-slate-800/90 p-1 rounded-lg border border-slate-700 gap-1"></div>
+
+      <!-- Right Controls: McGough-Only Admin Tools + Active Session Badge + Sign Out -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <div id="mcgough-scope-switcher-wrap" class="hidden">
+          <select id="mcgough-header-scope-select" onchange="handleMcGoughHeaderScopeSwitch(this.value)" aria-label="Switch Project Scope" class="px-2.5 py-1.5 rounded-lg bg-slate-800 text-amber-200 border border-slate-700 text-xs font-semibold"></select>
+        </div>
+
+        <div id="mcgough-admin-actions" class="hidden flex items-center gap-1.5 flex-wrap">
+          <button type="button" onclick="openNotificationsModal()" class="px-2.5 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold transition flex items-center gap-1 shadow-sm"><span>Pings &amp; Reminders</span><span id="notif-outbox-pill" class="px-1.5 py-0.2 rounded-full bg-slate-900 text-white text-[10px]">0</span></button>
+          <button type="button" onclick="openShareLinkModal()" class="px-2.5 py-1.5 rounded-lg bg-red-700 hover:bg-red-600 text-white text-xs font-semibold transition border border-red-500/30">PINs &amp; Links</button>
+          <button type="button" onclick="openApproversModal()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition border border-slate-700">
+            <span id="active-approver-pill">Campuses &amp; Approvers</span>
+          </button>
+          <button type="button" onclick="openExportDataModal()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition border border-slate-700">Export / Import</button>
+          <input type="file" id="json-import-input" accept=".json" class="hidden" onchange="handleJsonFileImport(event)" />
+        </div>
+
+        <span id="active-session-role-pill" class="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 text-xs font-semibold"></span>
+        <button type="button" onclick="signOutPortalSession()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-800 text-slate-200 hover:text-white text-xs font-semibold transition border border-slate-700">Sign Out</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================================================================== -->
+  <!-- SCOPED TRADE PARTNER WORKSPACE (Locked to Logged-In Contractor Only)  -->
+  <!-- ===================================================================== -->
+  <main id="trade-portal-workspace" class="hidden flex-1 max-w-[1450px] w-full mx-auto px-3 sm:px-5 py-4 flex-col gap-4">
+    <!-- Scoped Contractor Header Banner -->
+    <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-4 sm:p-5 rounded-2xl shadow-md border border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-400/30">Authenticated Contractor Workspace</span>
+          <span id="portal-locked-org-label" class="text-xs font-mono font-bold px-2.5 py-0.5 rounded bg-slate-800 text-amber-300 border border-slate-600">Magnum</span>
+        </div>
+        <h2 class="text-base sm:text-lg font-bold mt-1.5">Weekly Work Plan Submittals &amp; 3-Week Lookahead Proposals</h2>
+        <p class="text-xs text-slate-300 mt-0.5">All proposed new tasks and modifications to existing tasks route through McGough Supervision before updating the Official WWP.</p>
+      </div>
+      <div class="w-full md:w-64">
+        <label for="portal-foreman-input" class="block text-[11px] font-semibold text-slate-300 mb-1">Submitting Foreman / Lead Name *</label>
+        <input id="portal-foreman-input" type="text" placeholder="Foreman Name" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-600 text-white text-xs font-semibold" />
+      </div>
+    </div>
+
+    <!-- Mandatory Existing-Task Verification Reminder Banner -->
+    <div class="p-3.5 rounded-xl bg-amber-50 border-2 border-amber-300 text-amber-950 flex items-start gap-3 shadow-sm">
+      <span class="px-2 py-0.5 rounded bg-amber-400 text-slate-950 font-bold text-xs shrink-0 mt-0.5">REMINDER</span>
+      <div class="text-xs">
+        <strong>Check Your Current WWP Assignments Before Entering New Lookahead Work:</strong> Confirm your active tasks in Section 2 below still have accurate dates, crew counts, and % complete. Modifying any existing task routes through the same McGough approval queue as a new task.
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <!-- Left 8 Cols: New Lookahead Form + Existing Active Tasks -->
+      <div class="lg:col-span-8 flex flex-col gap-4">
+        <!-- 1. Propose New Lookahead Assignment -->
+        <div class="bg-slate-100 rounded-xl border border-slate-300 shadow-sm p-4">
+          <h3 class="text-sm font-bold text-slate-900 pb-2 mb-3 border-b border-slate-300">1. Propose New Lookahead Assignment</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-6 gap-3 text-xs">
+            <div class="sm:col-span-3">
+              <label for="new-task-area" class="block font-semibold text-slate-700 mb-1">Project Area *</label>
+              <select id="new-task-area" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white font-semibold"></select>
+            </div>
+            <div class="sm:col-span-1">
+              <label for="new-task-wbs" class="block font-semibold text-slate-700 mb-1">WBS #</label>
+              <input id="new-task-wbs" type="text" value="8" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white" />
+            </div>
+            <div class="sm:col-span-2">
+              <label for="new-task-crew" class="block font-semibold text-slate-700 mb-1">Crew Size</label>
+              <input id="new-task-crew" type="number" min="1" max="99" value="4" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white" />
+            </div>
+            <div class="sm:col-span-6 p-3 rounded-xl bg-white border border-sky-200 flex flex-col gap-2">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <label for="new-task-p6-search" class="font-bold text-slate-800">Select From Your P6 Schedule Tasks (Type-Ahead Shortcut) *</label>
+                <label class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 cursor-pointer">
+                  <input type="checkbox" id="new-task-unlisted-toggle" onchange="renderTradeP6TypeAheadOptions()" class="rounded border-slate-300" />
+                  <span>Unlisted emergent scope (not yet in P6)</span>
+                </label>
+              </div>
+              <input id="new-task-p6-search" type="text" oninput="renderTradeP6TypeAheadOptions()" placeholder="Type keyword or P6 ID to filter your company's P6 tasks..." class="w-full px-3 py-1.5 rounded-lg border border-slate-300 bg-slate-50" />
+              <select id="new-task-p6-select" onchange="applySelectedP6ToNewTaskForm(this.value)" class="w-full px-3 py-2 rounded-lg border border-sky-400 bg-white font-semibold text-slate-900"></select>
+              <div id="new-task-custom-desc-wrap" class="hidden pt-1">
+                <label for="new-task-desc" class="block font-semibold text-slate-700 mb-1">Custom Emergent Scope Description *</label>
+                <input id="new-task-desc" type="text" placeholder="Describe emergent scope not listed in P6..." class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white" />
+              </div>
+            </div>
+            <div class="sm:col-span-3">
+              <label for="new-task-start" class="block font-semibold text-slate-700 mb-1">Proposed Start Date *</label>
+              <input id="new-task-start" type="date" value="2026-11-23" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white" />
+            </div>
+            <div class="sm:col-span-3">
+              <label for="new-task-end" class="block font-semibold text-slate-700 mb-1">Proposed End Date *</label>
+              <input id="new-task-end" type="date" value="2026-11-27" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white" />
+            </div>
+            <div class="sm:col-span-6">
+              <label for="new-task-prereq" class="block font-semibold text-slate-700 mb-1">Required Prerequisite / Handoff From Others</label>
+              <input id="new-task-prereq" type="text" placeholder="Optional predecessor or area turnover requirement" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white" />
+            </div>
+          </div>
+          <div class="mt-3 flex justify-end">
+            <button type="button" onclick="stageNewTaskFromPortal()" class="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition shadow-sm">+ Stage New Lookahead Task</button>
+          </div>
+        </div>
+
+        <!-- 2. Current Official WWP Assignments for This Contractor -->
+        <div class="bg-slate-100 rounded-xl border border-slate-300 shadow-sm overflow-hidden">
+          <div class="px-4 py-3 bg-slate-200/80 border-b border-slate-300 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">2. Verify &amp; Update Your Current Official WWP Tasks</h3>
+              <p class="text-[11px] text-slate-600">Any change to dates, scope, or progress is staged for McGough approval.</p>
+            </div>
+            <label class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 cursor-pointer">
+              <input type="checkbox" id="portal-show-other-trades" onchange="renderTradePortal()" class="rounded border-slate-300" />
+              <span>Show adjacent trades in my areas (Read-Only)</span>
+            </label>
+          </div>
+          <div id="portal-tasks-container" class="divide-y divide-slate-200"></div>
+        </div>
+
+        <!-- 3. Trade Work Schedule, Weekend Availability & Holidays Off-Site -->
+        <div class="bg-slate-100 rounded-xl border border-slate-300 shadow-sm p-4">
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-2 mb-3 border-b border-slate-300">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">3. Crew Work Schedule, Weekend Availability &amp; Holidays Off-Site</h3>
+              <p class="text-[11px] text-slate-600">Keep McGough updated on your standard shift hours, weekend manpower, and planned holiday/off-site dates.</p>
+            </div>
+            <span id="ts-last-saved-badge" class="text-[11px] font-semibold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300"></span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div>
+              <label for="ts-shift-pattern" class="block font-semibold text-slate-700 mb-1">Standard Weekly Shift</label>
+              <select id="ts-shift-pattern" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white font-semibold">
+                <option value="Mon-Fri (5x8s)">Mon-Fri (5x8s)</option>
+                <option value="Mon-Fri (5x10s)" selected>Mon-Fri (5x10s)</option>
+                <option value="Mon-Thu (4x10s)">Mon-Thu (4x10s)</option>
+                <option value="Mon-Sat (6x10s)">Mon-Sat (6x10s)</option>
+                <option value="Rotating / Shift Coverage">Rotating / Shift Coverage</option>
+              </select>
+            </div>
+            <div>
+              <label for="ts-shift-hours" class="block font-semibold text-slate-700 mb-1">Daily On-Site Hours</label>
+              <input id="ts-shift-hours" type="text" value="07:00 - 17:30" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white" />
+            </div>
+            <div>
+              <label for="ts-daily-crew" class="block font-semibold text-slate-700 mb-1">Planned Daily Headcount</label>
+              <input id="ts-daily-crew" type="number" min="0" max="200" value="4" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white font-semibold" />
+            </div>
+          </div>
+
+          <!-- Upcoming 2 Weekends Availability -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 pt-3 border-t border-slate-200 text-xs">
+            <div class="p-2.5 rounded-lg bg-white border border-slate-300 flex flex-col gap-2">
+              <div class="font-bold text-slate-800">Weekend 1 Availability (Sat 11/21 - Sun 11/22)</div>
+              <div class="grid grid-cols-3 gap-2 items-center">
+                <span class="font-semibold text-slate-600">Sat 11/21:</span>
+                <select id="ts-sat1-status" class="px-2 py-1 rounded border border-slate-300 bg-white"><option value="Off-Site">Off-Site</option><option value="Working - Partial Crew">Partial Crew</option><option value="Working - Full Crew">Full Crew</option></select>
+                <input id="ts-sat1-crew" type="number" min="0" max="200" placeholder="Crew #" class="px-2 py-1 rounded border border-slate-300" />
+              </div>
+              <div class="grid grid-cols-3 gap-2 items-center">
+                <span class="font-semibold text-slate-600">Sun 11/22:</span>
+                <select id="ts-sun1-status" class="px-2 py-1 rounded border border-slate-300 bg-white"><option value="Off-Site">Off-Site</option><option value="Working - Partial Crew">Partial Crew</option><option value="Working - Full Crew">Full Crew</option></select>
+                <input id="ts-sun1-crew" type="number" min="0" max="200" placeholder="Crew #" class="px-2 py-1 rounded border border-slate-300" />
+              </div>
+            </div>
+
+            <div class="p-2.5 rounded-lg bg-white border border-slate-300 flex flex-col gap-2">
+              <div class="font-bold text-slate-800">Holiday Weekend Availability (Sat 11/28 - Sun 11/29)</div>
+              <div class="grid grid-cols-3 gap-2 items-center">
+                <span class="font-semibold text-slate-600">Sat 11/28:</span>
+                <select id="ts-sat2-status" class="px-2 py-1 rounded border border-slate-300 bg-white"><option value="Off-Site">Off-Site</option><option value="Working - Partial Crew">Partial Crew</option><option value="Working - Full Crew">Full Crew</option></select>
+                <input id="ts-sat2-crew" type="number" min="0" max="200" placeholder="Crew #" class="px-2 py-1 rounded border border-slate-300" />
+              </div>
+              <div class="grid grid-cols-3 gap-2 items-center">
+                <span class="font-semibold text-slate-600">Sun 11/29:</span>
+                <select id="ts-sun2-status" class="px-2 py-1 rounded border border-slate-300 bg-white"><option value="Off-Site">Off-Site</option><option value="Working - Partial Crew">Partial Crew</option><option value="Working - Full Crew">Full Crew</option></select>
+                <input id="ts-sun2-crew" type="number" min="0" max="200" placeholder="Crew #" class="px-2 py-1 rounded border border-slate-300" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Holidays / Planned Days Off-Site -->
+          <div class="mt-3 pt-3 border-t border-slate-200 text-xs flex flex-col gap-2">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="font-bold text-slate-800">Planned Holidays / Crew Days Off-Site:</span>
+              <div class="flex flex-wrap items-center gap-1.5">
+                <button type="button" onclick="quickAddTradeHoliday('2026-11-26', 'Thanksgiving Holiday - Off-Site')" class="px-2 py-1 rounded bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 font-semibold text-[11px]">+ Add Thu 11/26 (Thanksgiving)</button>
+                <button type="button" onclick="quickAddTradeHoliday('2026-11-27', 'Black Friday - Off-Site')" class="px-2 py-1 rounded bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 font-semibold text-[11px]">+ Add Fri 11/27 (Black Friday)</button>
+              </div>
+            </div>
+
+            <div id="ts-holidays-list" class="flex flex-wrap gap-1.5 py-1"></div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+              <input id="ts-new-holiday-date" type="date" value="2026-12-24" class="sm:col-span-4 px-2.5 py-1.5 rounded border border-slate-300 bg-white" />
+              <input id="ts-new-holiday-reason" type="text" placeholder="Reason (e.g., Holiday Shutdown / Company Training)" class="sm:col-span-6 px-2.5 py-1.5 rounded border border-slate-300 bg-white" />
+              <button type="button" onclick="addCustomTradeHoliday()" class="sm:col-span-2 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-white font-semibold">+ Add Off-Site</button>
+            </div>
+
+            <div class="mt-1">
+              <label for="ts-notes" class="block font-semibold text-slate-700 mb-1">Shift / Access Coordination Notes for McGough</label>
+              <input id="ts-notes" type="text" placeholder="e.g., Requesting early 6:00 AM gate access Saturday for crane pick" class="w-full px-3 py-1.5 rounded border border-slate-300 bg-white" />
+            </div>
+          </div>
+
+          <div class="mt-3 pt-3 border-t border-slate-300 flex justify-end">
+            <button type="button" onclick="saveTradeWorkSchedule()" class="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm">Save &amp; Submit Work Schedule to McGough</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right 4 Cols: Staged Submission Package -->
+      <div class="lg:col-span-4">
+        <div class="bg-slate-100 rounded-xl border border-slate-300 shadow-md p-4 sticky top-16 flex flex-col gap-3">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-300">
+            <h3 class="text-sm font-bold text-slate-900">Staged WWP Submittal Package</h3>
+            <span id="portal-staged-count" class="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 text-xs font-bold">0 items</span>
+          </div>
+          <div id="portal-staged-list" class="flex flex-col gap-2 max-h-80 overflow-y-auto"></div>
+          <button type="button" onclick="submitPortalPackageToMcGough()" class="w-full py-2.5 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-xs sm:text-sm font-bold transition shadow-sm">Submit Updates for McGough Approval &rarr;</button>
+          <button type="button" onclick="exportStagedPacketJson()" class="w-full py-2 px-3 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition">Download Backup Packet (.json)</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+<main id="mop-workspace" class="hidden flex-1 max-w-[1550px] w-full mx-auto px-3 sm:px-5 py-4 flex flex-col gap-4">
+    <!-- Top MOP Governance Banner -->
+    <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-4 sm:p-5 rounded-2xl shadow-md border border-slate-700 flex flex-col lg:flex-row lg:items-center justify-between gap-4 no-print">
+      <div class="flex items-start gap-3.5">
+        <div class="w-11 h-11 rounded-xl bg-indigo-500/20 border border-indigo-400/40 flex items-center justify-center text-indigo-300 shrink-0 mt-0.5">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-indigo-500/25 text-indigo-200 border border-indigo-400/30">Ellendale MOP Submittal System</span>
+            <span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-amber-400/20 text-amber-200 border border-amber-400/30">Dual Gate: McGough + Applied Digital Fac Ops</span>
+          </div>
+          <h2 class="text-base sm:text-lg font-bold mt-1">Method of Procedure (MOP) Drafts, Submissions &amp; Sign-Offs</h2>
+          <p class="text-xs text-slate-300 mt-0.5">No work shall begin until the MOP has been submitted by the Trade Rep and digitally approved by <strong>BOTH McGough</strong> and <strong>Applied Digital Fac Ops</strong>.</p>
+        </div>
+      </div>
+
+      <!-- Sub-View Switcher Pills -->
+      <div class="flex flex-wrap items-center gap-2 shrink-0">
+        <button type="button" id="mop-tab-btn-form" onclick="switchMopSubTab('form')" class="px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-indigo-600 text-white shadow-sm">
+          <span>+ Fill Out / Submit MOP</span>
+        </button>
+        <button type="button" id="mop-tab-btn-queue" onclick="switchMopSubTab('queue')" class="px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white border border-white/15">
+          <span>MOP Approval Queue &amp; Log</span>
+          <span id="mop-queue-pill-count" class="px-2 py-0.2 rounded-full text-[11px] bg-amber-400 text-slate-950 font-bold">2</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- KPI Summary Strip -->
+    <div id="mop-kpi-strip" class="grid grid-cols-2 lg:grid-cols-4 gap-3 no-print"></div>
+
+    <!-- =================================================================== -->
+    <!-- MOP SUB-VIEW 1: TRADE MOP SUBMITTAL FORM (ELLENDALE MOP TEMPLATE)   -->
+    <!-- =================================================================== -->
+    <section id="mop-section-form" class="flex flex-col gap-4 no-print">
+      <div id="mop-mcgough-author-mode-bar" class="hidden"></div>
+      <div class="bg-slate-100 rounded-xl border border-slate-300 shadow-md overflow-hidden">
+        <!-- Form Header Bar -->
+        <div class="px-4 py-3 bg-slate-800 text-white flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 class="text-sm sm:text-base font-bold tracking-tight" id="mop-form-heading">ELLENDALE MOP SUBMITTAL - New Draft / Proposal</h3>
+            <p class="text-xs text-slate-300">Fill out all required project, hazard, escort, representative, and step-by-step fields below. Save as a Draft or submit for McGough &amp; Applied Digital Fac Ops approval.</p>
+          </div>
+          <button type="button" onclick="resetMopForm()" class="px-3 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold border border-slate-600">
+            Reset / Clear Form
+          </button>
+        </div>
+
+        <div class="p-4 sm:p-5 flex flex-col gap-5">
+          <input type="hidden" id="mop-edit-id" value="" />
+
+          <!-- Part 1: Project, Risk, Dates & Scope Metadata -->
+          <div>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 pb-2 mb-3 border-b border-slate-300">1. Project, Risk &amp; Schedule Window</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+              <div>
+                <label for="mop-project" class="block font-semibold text-slate-700 mb-1">Project *</label>
+                <input type="text" id="mop-project" value="Ellendale Data Center" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-medium text-slate-900" />
+              </div>
+              <div>
+                <label for="mop-discipline" class="block font-semibold text-slate-700 mb-1">MOP Discipline / Sheet Type *</label>
+                <select id="mop-discipline" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-semibold text-slate-900">
+                  <option value="Electrical MOP">Electrical MOP</option>
+                  <option value="Mechanical / Piping MOP">Mechanical / Piping MOP</option>
+                  <option value="Controls / BMS MOP">Controls / BMS MOP</option>
+                  <option value="Fire Protection MOP">Fire Protection MOP</option>
+                  <option value="Structural / Architectural MOP">Structural / Architectural MOP</option>
+                </select>
+              </div>
+              <div>
+                <label for="mop-org" class="block font-semibold text-slate-700 mb-1">Lead Submitting Contractor *</label>
+                <select id="mop-org" onchange="handleMopLeadOrgChange(this.value)" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-semibold text-slate-900"></select>
+              </div>
+              <div>
+                <label for="mop-risk" class="block font-semibold text-slate-700 mb-1">Degree of Risk (Low / Medium / High) *</label>
+                <select id="mop-risk" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-bold text-slate-900">
+                  <option value="Low">Low Risk</option>
+                  <option value="Medium" selected>Medium Risk</option>
+                  <option value="High">High Risk</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="mop-prop-date" class="block font-semibold text-slate-700 mb-1">Proposed Start Date *</label>
+                <input type="date" id="mop-prop-date" value="2026-11-23" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-900" />
+              </div>
+              <div>
+                <label for="mop-prop-time" class="block font-semibold text-slate-700 mb-1">Proposed Start Time *</label>
+                <input type="time" id="mop-prop-time" value="07:00" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-900" />
+              </div>
+              <div>
+                <label for="mop-duration" class="block font-semibold text-slate-700 mb-1">Estimated Duration (Day / Days) *</label>
+                <input type="text" id="mop-duration" placeholder="e.g., 1 Day (or 6 Hours)" value="1 Day" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-900" />
+              </div>
+              <div>
+                <label for="mop-area" class="block font-semibold text-slate-700 mb-1">Primary Project Area *</label>
+                <select id="mop-area" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-medium text-slate-900"></select>
+              </div>
+
+              <div class="sm:col-span-2 lg:col-span-4">
+                <label for="mop-work-desc" class="block font-semibold text-slate-700 mb-1">Work to be Completed (Short Description) *</label>
+                <input type="text" id="mop-work-desc" placeholder="e.g., Tie-in overhead RPP feeder conduit &amp; verify LOTO isolation on Panel RPP-3A" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-900" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Part 2: Rooms, Escorts, CoreWeave Escorts & System Dangers -->
+          <div>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 pb-2 mb-3 border-b border-slate-300">2. Work Areas, Escort Requirements &amp; Systems Affected</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+              <div>
+                <label for="mop-rooms" class="block font-semibold text-slate-700 mb-1">Work Area(s) / Specific Room Numbers *</label>
+                <input type="text" id="mop-rooms" placeholder="e.g., DH1 North Elec Room 104, Corridor B" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-900" />
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label for="mop-escort-req" class="block font-semibold text-slate-700 mb-1">Escorts Required?</label>
+                  <select id="mop-escort-req" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white font-semibold">
+                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="mop-escort-steps" class="block font-semibold text-slate-700 mb-1">Escort Step No. (?-?)</label>
+                  <input type="text" id="mop-escort-steps" placeholder="e.g., Steps 2-6" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white" />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label for="mop-cw-escort-req" class="block font-semibold text-slate-700 mb-1">CoreWeave Escort?</label>
+                  <select id="mop-cw-escort-req" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white font-semibold">
+                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="mop-cw-escort-steps" class="block font-semibold text-slate-700 mb-1">CoreWeave Steps (?-?)</label>
+                  <input type="text" id="mop-cw-escort-steps" placeholder="e.g., Steps 3-5" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white" />
+                </div>
+              </div>
+
+              <div class="sm:col-span-2 lg:col-span-3">
+                <label for="mop-affected-systems" class="block font-semibold text-slate-700 mb-1">Area(s) / System(s) Affected - Dangers / Repercussions *</label>
+                <textarea id="mop-affected-systems" rows="2" placeholder="Describe energized busways, chilled water loops, fire suppression zones, LOTO boundaries, or potential repercussions..." class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-900"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Part 3: Trade Representatives & Required Approver Sign-Off Preview -->
+          <div>
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-2 mb-3 border-b border-slate-300">
+              <div>
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700">3. Subcontractor Representatives &amp; Dual Approval Sign-Off Roster</h4>
+                <p class="text-[11px] text-slate-600">No changes shall be made without approval of Client Rep (Applied Digital Fac Ops) AND McGough personnel.</p>
+              </div>
+              <button type="button" onclick="addMopTradeRepRow()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold">
+                + Add Trade Rep Row
+              </button>
+            </div>
+
+            <div id="mop-trade-reps-container" class="flex flex-col gap-2"></div>
+
+            <!-- Read-only Preview of Gate 1 & Gate 2 Sign-Off Slots -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 mt-3 text-xs">
+              <div class="p-2.5 rounded-lg bg-slate-200/80 border border-slate-300 flex items-center justify-between">
+                <div>
+                  <span class="font-bold text-red-900">Gate 1 - McGough Representative:</span>
+                  <span class="text-slate-600 ml-1">Stamped digitally upon McGough review</span>
+                </div>
+                <span class="px-2 py-0.5 rounded bg-white text-slate-600 font-semibold text-[10px] border border-slate-300">Required</span>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-200/80 border border-slate-300 flex items-center justify-between">
+                <div>
+                  <span class="font-bold text-indigo-950">Gate 2 - Client Rep (Applied Digital Fac Ops):</span>
+                  <span class="text-slate-600 ml-1">Stamped digitally upon Fac Ops review</span>
+                </div>
+                <span class="px-2 py-0.5 rounded bg-white text-slate-600 font-semibold text-[10px] border border-slate-300">Required</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Part 4: Numbered Step-by-Step Procedure Table -->
+          <div>
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-2 mb-3 border-b border-slate-300">
+              <div>
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700">4. Step-by-Step Work Procedure Sequence</h4>
+                <p class="text-[11px] text-slate-600">List all steps in chronological order with Room Number and Responsible Subcontractor.</p>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button type="button" onclick="addMopStepRows(1)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold">+ Add Step</button>
+                <button type="button" onclick="addMopStepRows(5)" class="px-2.5 py-1 rounded-lg border border-slate-400 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold">+ Add 5 Steps</button>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto rounded-lg border border-slate-300 bg-white">
+              <table class="w-full border-collapse text-left text-xs">
+                <thead class="bg-slate-800 text-white">
+                  <tr>
+                    <th class="px-2.5 py-2 w-12 text-center font-semibold border-r border-slate-700">No.</th>
+                    <th class="px-3 py-2 font-semibold border-r border-slate-700">Detailed Description (Step-by-step process of work being performed) *</th>
+                    <th class="px-2.5 py-2 w-36 font-semibold border-r border-slate-700">Room Number</th>
+                    <th class="px-2.5 py-2 w-40 font-semibold border-r border-slate-700">Subcontractor</th>
+                    <th class="px-2 py-2 w-20 text-center font-semibold">Order</th>
+                  </tr>
+                </thead>
+                <tbody id="mop-steps-tbody" class="divide-y divide-slate-200"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Form Footer Actions: Save as Draft vs Submit for Dual Approval -->
+          <div class="pt-3 border-t border-slate-300 flex flex-wrap items-center justify-between gap-3">
+            <div class="text-xs text-slate-600">
+              Saving as a <strong>Draft</strong> lets your team keep editing before formal submittal. Submitting routes the MOP to <strong>McGough</strong> &amp; <strong>Applied Digital Fac Ops</strong>.
+            </div>
+            <div class="flex flex-wrap items-center gap-2.5">
+              <button type="button" onclick="saveMopEntry('DRAFT')" class="px-4 py-2.5 rounded-xl border-2 border-slate-400 bg-white hover:bg-slate-50 text-slate-800 text-xs sm:text-sm font-bold transition">
+                Save as Trade Draft
+              </button>
+              <button type="button" onclick="saveMopEntry('SUBMITTED')" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-bold transition shadow-sm">
+                Submit MOP for McGough &amp; Applied Digital Approval &rarr;
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- MOP SUB-VIEW 2: DUAL APPROVAL QUEUE (MCGOUGH + APPLIED DIGITAL)     -->
+    <!-- =================================================================== -->
+    <section id="mop-section-queue" class="flex flex-col gap-4">
+      <div class="bg-slate-100 p-3.5 rounded-xl border border-slate-300 shadow-sm flex flex-wrap items-center justify-between gap-2.5 no-print">
+        <div class="flex flex-wrap items-center gap-2">
+          <input type="text" id="mop-filter-search" oninput="renderMopQueue()" placeholder="Search MOP ID, description, room, contractor..." class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs w-64 max-w-full" />
+          <select id="mop-filter-status" onchange="renderMopQueue()" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700">
+            <option value="ALL">All MOP Stages</option>
+            <option value="DRAFT">Trade Drafts (Unsubmitted)</option>
+            <option value="NEEDS_MCGOUGH">Awaiting Gate 1: McGough Approval</option>
+            <option value="NEEDS_CLIENT">Awaiting Gate 2: Applied Digital Fac Ops</option>
+            <option value="FULLY_APPROVED">Fully Approved (Authorized for Work)</option>
+            <option value="RETURNED">Returned / Changes Requested</option>
+          </select>
+          <select id="mop-filter-risk" onchange="renderMopQueue()" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-medium text-slate-700">
+            <option value="ALL">All Risk Levels</option>
+            <option value="High">High Risk</option>
+            <option value="Medium">Medium Risk</option>
+            <option value="Low">Low Risk</option>
+          </select>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button type="button" id="mop-manage-approvers-btn" onclick="openApproversModal()" class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700">
+            Manage McGough &amp; Applied Digital Approvers
+          </button>
+        </div>
+      </div>
+
+      <div id="mop-cards-container" class="flex flex-col gap-3.5"></div>
+    </section>
+  </main>
+  <!-- ===================================================================== -->
+  <!-- SCOPED TRADE PARTNER PCO WORKSPACE (Private to Trade & McGough)       -->
+  <!-- ===================================================================== -->
+  <main id="pco-trade-workspace" class="hidden flex-1 max-w-[1400px] w-full mx-auto px-3 sm:px-5 py-4 flex-col gap-4">
+    <div class="bg-slate-900 text-white p-4 sm:p-5 rounded-2xl border border-slate-700 shadow-md">
+      <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-400 text-slate-950">Private Subcontractor-to-McGough PCO Channel</span>
+      <h2 class="text-base sm:text-lg font-bold mt-1.5">Submit Potential Change Order (PCO) to McGough</h2>
+      <p class="text-xs text-slate-300 mt-0.5">Submitted PCOs are visible only to your company and McGough Supervision, and require tagging Cost-Only vs. P6 Schedule Impact.</p>
+    </div>
+
+    <div class="bg-slate-100 rounded-xl border border-slate-300 p-4 shadow-sm text-xs flex flex-col gap-3">
+      <h3 class="text-sm font-bold text-slate-900 pb-2 border-b border-slate-300">New Potential Change Order Submittal</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="sm:col-span-2"><label for="pco-title" class="block font-semibold text-slate-700 mb-1">PCO Title / Scope Change Description *</label><input id="pco-title" type="text" placeholder="Describe added/modified scope, RFI/ASI reference, and field condition..." class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white" /></div>
+        <div><label for="pco-reason" class="block font-semibold text-slate-700 mb-1">Change Origin *</label><select id="pco-reason" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-semibold"><option value="Field Condition / Coordination">Field Condition / Coordination</option><option value="Design Revision / ASI / RFI">Design Revision / ASI / RFI</option><option value="Owner Scope Addition">Owner Scope Addition</option><option value="Acceleration / Overtime">Acceleration / Overtime</option></select></div>
+        <div><label for="pco-area" class="block font-semibold text-slate-700 mb-1">Project Area *</label><select id="pco-area" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-semibold"></select></div>
+        <div><label for="pco-room" class="block font-semibold text-slate-700 mb-1">Specific Room / Gridline *</label><input id="pco-room" type="text" placeholder="e.g., DH2 North Gallery" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white" /></div>
+        <div class="grid grid-cols-2 gap-2">
+          <div><label for="pco-rom" class="block font-semibold text-slate-700 mb-1">ROM Estimate ($)</label><input id="pco-rom" type="number" min="0" placeholder="5000" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white font-mono" /></div>
+          <div><label for="pco-basis" class="block font-semibold text-slate-700 mb-1">Pricing Basis</label><select id="pco-basis" class="w-full px-2 py-2 rounded-lg border border-slate-300 bg-white"><option value="Lump Sum">Lump Sum</option><option value="T&amp;M Not-to-Exceed">T&amp;M NTE</option><option value="Unit Rate">Unit Rate</option></select></div>
+        </div>
+      </div>
+
+      <!-- Mandatory Cost-Only vs P6 Schedule-Impact Tag -->
+      <div class="p-3 rounded-xl bg-white border border-slate-300 flex flex-col gap-2.5">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+          <div>
+            <label for="pco-impact-type" class="block font-bold text-slate-800 mb-1">P6 Schedule Impact Classification *</label>
+            <select id="pco-impact-type" onchange="toggleTradePcoImpactFields()" class="w-full px-3 py-2 rounded-lg border border-slate-400 bg-white font-bold text-slate-900">
+              <option value="COST_ONLY">Cost Only (0 Day Schedule Slip)</option>
+              <option value="SCHEDULE_IMPACT">Cost + P6 Schedule Impact</option>
+            </select>
+          </div>
+          <div id="pco-schedule-impact-fields" class="hidden sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div class="sm:col-span-2"><label for="pco-impacted-p6" class="block font-semibold text-rose-900 mb-1">Impacted P6 Activity *</label><select id="pco-impacted-p6" class="w-full px-2.5 py-2 rounded-lg border border-rose-300 bg-rose-50 font-semibold"></select></div>
+            <div><label for="pco-slip-days" class="block font-semibold text-rose-900 mb-1">Est. Slip (Days)</label><input id="pco-slip-days" type="number" min="1" max="120" value="2" class="w-full px-2.5 py-2 rounded-lg border border-rose-300 bg-white font-bold" /></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end">
+        <button type="button" onclick="submitNewTradePco()" class="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold shadow-sm">Submit PCO to McGough &amp; Send Ping &rarr;</button>
+      </div>
+    </div>
+
+    <div id="trade-pco-list" class="flex flex-col gap-3"></div>
+  </main>
+
+  <!-- ===================================================================== -->
+  <!-- TRADE PARTNER READ-ONLY P6 MASTER SCHEDULE VIEW                       -->
+  <!-- ===================================================================== -->
+  <main id="trade-p6-workspace" class="hidden flex-1 max-w-[1450px] w-full mx-auto px-3 sm:px-5 py-4 flex-col gap-4">
+    <div class="bg-slate-900 text-white p-4 rounded-2xl border border-slate-700 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">Primavera P6 Reference</span>
+        <h2 class="text-base sm:text-lg font-bold mt-1">P6 Master Schedule &amp; % Tracker Reference</h2>
+      </div>
+      <div class="flex flex-wrap items-center gap-3 text-xs">
+        <label class="inline-flex items-center gap-1.5 cursor-pointer text-slate-200 font-semibold">
+          <input type="checkbox" id="trade-p6-show-all-areas" onchange="renderTradeP6Workspace()" class="rounded border-slate-500" />
+          <span>Show all trades for coordination</span>
+        </label>
+        <input id="trade-p6-search" type="text" oninput="renderTradeP6Workspace()" placeholder="Filter P6 ID or scope..." class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-600 text-white" />
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-300 shadow-sm overflow-x-auto">
+      <table class="w-full border-collapse text-left text-xs">
+        <thead class="bg-slate-800 text-white">
+          <tr>
+            <th class="px-3 py-2.5 font-semibold border-r border-slate-700">P6 ID</th>
+            <th class="px-2.5 py-2.5 font-semibold border-r border-slate-700">Area</th>
+            <th class="px-2.5 py-2.5 font-semibold border-r border-slate-700">Trade</th>
+            <th class="px-3 py-2.5 font-semibold border-r border-slate-700">P6 Activity Name</th>
+            <th class="px-2.5 py-2.5 font-semibold border-r border-slate-700">P6 Target Window</th>
+            <th class="px-2.5 py-2.5 text-center font-semibold">P6 %</th>
+          </tr>
+        </thead>
+        <tbody id="trade-p6-tbody" class="divide-y divide-slate-200"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- Shared Dynamic Modal & Toast Containers -->
+  <div id="modal-backdrop" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-[2px] flex items-center justify-center p-3 sm:p-5 overflow-y-auto no-print" onclick="handleBackdropClick(event)">
+    <div id="modal-content" class="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl overflow-hidden my-auto"></div>
+  </div>
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none no-print"></div>
+
+  <script src="js/storage.js"></script>
+  <script src="js/shared.js"></script>
+  <script src="js/notifications.js"></script>
+  <script src="js/p6.js"></script>
+  <script src="js/pco.js"></script>
+  <script src="js/trade-portal.js"></script>
+  <script src="js/mop.js"></script>
+</body>
+</html>

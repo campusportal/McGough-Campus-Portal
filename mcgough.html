@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>McGough Command Portal - Ellendale WWP & MOPs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/firebase@12.6.0/firebase-app-compat.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/firebase@12.6.0/firebase-auth-compat.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/firebase@12.6.0/firebase-firestore-compat.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script>
+    window.MCGOUGH_MULTIPAGE = true;
+    window.MCGOUGH_PAGE_ID = 'mcgough';
+  </script>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-red-100 selection:text-red-900">
+  <!-- Role-Isolated Top Portal Navigation Bar -->
+  <header id="portal-header" class="hidden bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-40 shadow-sm no-print">
+    <div class="max-w-[1600px] mx-auto px-3 sm:px-5 py-2.5 flex flex-wrap items-center justify-between gap-2.5">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-red-700 flex items-center justify-center font-bold text-lg tracking-tight border border-red-500/40 shrink-0">M</div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 id="header-portal-title" class="font-bold text-sm sm:text-base tracking-tight text-white">Ellendale Portal</h1>
+            <span id="header-scope-badge" class="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-amber-300 border border-slate-700">EL4T | Ellendale Campus - Building 4 - TFO</span>
+            <span id="planning-week-label" class="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">Planning Week 11</span>
+            <span id="header-cloud-sync-wrap"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Strictly Scoped Navigation Controls Rendered Per Role -->
+      <div id="role-center-nav" class="flex flex-wrap items-center bg-slate-800/90 p-1 rounded-lg border border-slate-700 gap-1"></div>
+
+      <!-- Right Controls: McGough-Only Admin Tools + Active Session Badge + Sign Out -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <div id="mcgough-scope-switcher-wrap" class="hidden">
+          <select id="mcgough-header-scope-select" onchange="handleMcGoughHeaderScopeSwitch(this.value)" aria-label="Switch Project Scope" class="px-2.5 py-1.5 rounded-lg bg-slate-800 text-amber-200 border border-slate-700 text-xs font-semibold"></select>
+        </div>
+
+        <div id="mcgough-admin-actions" class="hidden flex items-center gap-1.5 flex-wrap">
+          <button type="button" onclick="openNotificationsModal()" class="px-2.5 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold transition flex items-center gap-1 shadow-sm"><span>Pings &amp; Reminders</span><span id="notif-outbox-pill" class="px-1.5 py-0.2 rounded-full bg-slate-900 text-white text-[10px]">0</span></button>
+          <button type="button" onclick="openShareLinkModal()" class="px-2.5 py-1.5 rounded-lg bg-red-700 hover:bg-red-600 text-white text-xs font-semibold transition border border-red-500/30">PINs &amp; Links</button>
+          <button type="button" onclick="openApproversModal()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition border border-slate-700">
+            <span id="active-approver-pill">Campuses &amp; Approvers</span>
+          </button>
+          <button type="button" onclick="openExportDataModal()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition border border-slate-700">Export / Import</button>
+          <input type="file" id="json-import-input" accept=".json" class="hidden" onchange="handleJsonFileImport(event)" />
+        </div>
+
+        <span id="active-session-role-pill" class="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 text-xs font-semibold"></span>
+        <button type="button" onclick="signOutPortalSession()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-800 text-slate-200 hover:text-white text-xs font-semibold transition border border-slate-700">Sign Out</button>
+      </div>
+    </div>
+  </header>
+
+<main id="gc-workspace" class="hidden flex-1 max-w-[1600px] w-full mx-auto px-3 sm:px-5 py-4 flex flex-col gap-4">
+
+    <!-- 11x17 Print Title Block (Visible only in Print) & Fullscreen WWP Meeting Mode Bar -->
+    <div id="wwp-print-title-block" class="only-print"></div>
+    <div id="meeting-mode-bar" class="hidden"></div>
+
+    <!-- Sub-Navigation Tabs + Priority Rule Banner -->
+    <div id="gc-subnav-bar" class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-slate-100 p-2.5 rounded-xl border border-slate-300 shadow-sm no-print">
+      <nav class="flex items-center gap-1 flex-wrap" aria-label="McGough Workspace Views">
+        <button type="button" id="gc-tab-lookahead" onclick="switchGcTab('lookahead')" class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-slate-900 text-white">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          <span>Official Lookahead &amp; WWP</span>
+        </button>
+        <button type="button" id="gc-tab-approvals" onclick="switchGcTab('approvals')" class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-slate-600 hover:bg-slate-100">
+          <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+          <span>Trade Approval Queue</span>
+          <span id="pending-badge-tab" class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">4</span>
+        </button>
+        <button type="button" id="gc-tab-p6" onclick="switchGcTab('p6')" class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-slate-600 hover:bg-slate-100">
+          <span>P6 Schedule &amp; % Tracker</span>
+        </button>
+        <button type="button" id="gc-tab-pcos" onclick="switchGcTab('pcos')" class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-slate-600 hover:bg-slate-100">
+          <span>Trade PCOs (Private)</span>
+          <span id="pco-badge-tab" class="px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">1</span>
+        </button>
+        <button type="button" id="gc-tab-roadblocks" onclick="switchGcTab('roadblocks')" class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-slate-600 hover:bg-slate-100">
+          <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          <span>Roadblocks &amp; Prerequisites</span>
+          <span id="roadblock-badge-tab" class="px-1.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">8</span>
+        </button>
+        <button type="button" id="gc-tab-analytics" onclick="switchGcTab('analytics')" class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-slate-600 hover:bg-slate-100">
+          <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          <span>PPC Analytics &amp; Contractors</span>
+        </button>
+        <button type="button" id="gc-tab-changelog" onclick="switchGcTab('changelog')" class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-slate-600 hover:bg-slate-100">
+          <span>WWP Change Log</span>
+          <span id="changelog-badge-tab" class="px-1.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-200 text-slate-800">0</span>
+        </button>
+      </nav>
+
+      <!-- Priority Right-of-Way Policy Notice -->
+      <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50/90 border border-amber-200/80 text-amber-950 text-xs">
+        <svg class="w-4 h-4 text-amber-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span><strong>Area Right-of-Way:</strong> Approved tasks on this Official WWP take priority over unplanned work in the same location.</span>
+      </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- TAB 1: OFFICIAL LOOKAHEAD & WWP                                     -->
+    <!-- =================================================================== -->
+    <section id="view-lookahead" class="flex flex-col gap-3.5">
+      <!-- KPI Summary Strip -->
+      <div id="lookahead-kpi-strip" class="grid grid-cols-2 md:grid-cols-5 gap-2.5 no-print"></div>
+
+      <!-- Toolbar: Rolling Date Controls (Auto-Anchored!) + Filters + Add Task -->
+      <div class="bg-slate-100 p-3.5 rounded-xl border border-slate-300 shadow-sm flex flex-col gap-3 no-print">
+        <div class="flex flex-wrap items-center justify-between gap-2.5">
+          <!-- Rolling Calendar Window Nav -->
+          <div class="flex flex-wrap items-center gap-1.5">
+            <div class="inline-flex items-center rounded-lg border border-slate-300 bg-slate-50 p-0.5">
+              <button type="button" onclick="shiftLookaheadDays(-7)" class="px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-white rounded-md transition" title="Roll window back 1 week">&larr; Prev Wk</button>
+              <button type="button" onclick="resetLookaheadToday()" class="px-2.5 py-1 text-xs font-semibold text-red-700 hover:bg-white rounded-md transition border-x border-slate-200/80">11/18 (Wk 11)</button>
+              <button type="button" onclick="shiftLookaheadDays(7)" class="px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-white rounded-md transition" title="Advance 1 week - tasks stay locked to real calendar dates!">Next Wk &rarr;</button>
+            </div>
+
+            <div class="flex items-center gap-1.5 text-xs text-slate-600 ml-1">
+              <label for="lookahead-start-input" class="font-medium hidden sm:inline">Window Start:</label>
+              <input type="date" id="lookahead-start-input" value="2026-11-18" onchange="setLookaheadStartDate(this.value)" class="px-2 py-1 rounded-lg border border-slate-300 text-xs font-medium text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-red-600/20 focus:border-red-600" />
+            </div>
+
+            <select id="horizon-select" onchange="setHorizonWeeks(this.value)" aria-label="Lookahead Horizon" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 bg-white">
+              <option value="7">1-Week WWP (7 Days)</option>
+              <option value="16" selected>3-Week Sheet Horizon (16 Days: 11/18-12/03)</option>
+              <option value="21">Full 3-Week Lookahead (21 Days)</option>
+              <option value="28">4-Week Lookahead (28 Days)</option>
+            </select>
+
+            <select id="display-mode-select" onchange="setDisplayMode(this.value)" aria-label="Timeline Cell Mode" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs font-medium text-slate-700 bg-white">
+              <option value="hybrid" selected>Outbuild Bars + Huddle Codes (S / x / C)</option>
+              <option value="bars">Clean Gantt Bars Only</option>
+              <option value="codes">Field Huddle Markup Grid (S / x / C / %)</option>
+            </select>
+          </div>
+
+          <!-- Primary Add Official Task, Hide Early Controls & Expand -->
+          <div id="gc-edit-toolbar-actions" class="flex flex-wrap items-center gap-2">
+            <button type="button" id="toggle-p6-overlay-btn" onclick="toggleP6Overlay()" class="px-2.5 py-1.5 rounded-lg border border-emerald-500 bg-emerald-700 text-white text-xs font-bold transition shadow-sm" title="Overlay Primavera P6 Master Schedule dates directly beneath WWP bars">P6 Overlay: ON</button>
+            <button type="button" id="toggle-hidden-tasks-btn" onclick="toggleShowHiddenTasks()" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-slate-200/80 hover:bg-slate-200 text-xs font-semibold text-slate-800 transition flex items-center gap-1.5" title="Show or hide tasks tucked away after early completion">
+              <span id="hidden-tasks-btn-label">Hidden Early (0)</span>
+            </button>
+            <button type="button" onclick="hideAllCompletedTasks()" class="px-2.5 py-1.5 rounded-lg border border-emerald-300 bg-emerald-100/80 hover:bg-emerald-200/80 text-xs font-semibold text-emerald-900 transition" title="Hide all 100% completed tasks from active board">
+              Hide 100% Done
+            </button>
+            <button type="button" onclick="expandCollapseAllAreas()" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white/80 hover:bg-white text-xs font-medium text-slate-700 transition">
+              Expand / Collapse Areas
+            </button>
+            <button type="button" onclick="freezeWeeklyBaseline()" class="px-2.5 py-1.5 rounded-lg border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-xs font-bold text-indigo-950 transition" title="Snapshot weekly commitments right before printing 11x17 WWP">Freeze Baseline</button>
+            <button type="button" onclick="printTabloidWwp()" class="px-2.5 py-1.5 rounded-lg border border-slate-400 bg-white hover:bg-slate-100 text-xs font-bold text-slate-900 transition" title="Print Official WWP formatted for 11x17 Tabloid Landscape">Print 11x17 WWP</button>
+            <button type="button" onclick="toggleWwpMeetingMode(true)" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-sm" title="Launch chrome-free interactive Presentation Mode for WWP meetings">WWP Meeting Mode</button>
+            <button type="button" onclick="openTaskModal(null)" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+              <span>Add Official Task</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Row -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-2 border-t border-slate-100">
+          <div class="relative">
+            <input type="text" id="filter-search" oninput="applyLookaheadFilters()" placeholder="Search scope, foreman, WBS, prerequisite..." class="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-500" />
+            <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          </div>
+          <select id="filter-area" onchange="applyLookaheadFilters()" aria-label="Filter by Area" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-700 bg-white">
+            <option value="ALL">All Project Areas (Admin + Data Halls 1-6)</option>
+          </select>
+          <select id="filter-org" onchange="applyLookaheadFilters()" aria-label="Filter by Contractor" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-700 bg-white">
+            <option value="ALL">All Contractors (27 Organizations)</option>
+          </select>
+          <select id="filter-status" onchange="applyLookaheadFilters()" aria-label="Filter by Status" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-700 bg-white">
+            <option value="ALL">All Task Statuses</option>
+            <option value="PENDING_SUBMISSION">Has Pending Trade Update (Unapproved)</option>
+            <option value="HAS_PREREQ">Has Open Roadblock / Prerequisite</option>
+            <option value="IN_WINDOW">Active in Visible Date Window</option>
+            <option value="COMPLETED">Completed (100% or C)</option>
+          </select>
+        </div>
+
+        <!-- Legend & Zero-Shift Hint -->
+        <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 pt-1">
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="font-semibold text-slate-700">Huddle Markup Key:</span>
+            <span class="inline-flex items-center gap-1"><kbd class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">S</kbd> Start</span>
+            <span class="inline-flex items-center gap-1"><kbd class="px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 font-bold text-[10px]">x</kbd> Active Work</span>
+            <span class="inline-flex items-center gap-1"><kbd class="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 font-bold text-[10px]">C</kbd> Complete</span>
+            <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span> Pending Trade Proposal (Locked until approved)</span>
+            <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span> Open Prerequisite</span>
+          </div>
+          <span id="gc-huddle-controls-hint" class="text-slate-700 font-medium">Live Controls: Drag bar or click -1d/+1d (opens verification prompt) | Click Undo on any modified row | Click cell for S/x/C.</span>
+        </div>
+      </div>
+
+      <!-- Main Official Lookahead Schedule Grid -->
+      <div class="bg-slate-100 rounded-xl border border-slate-300 shadow-md overflow-hidden">
+        <div id="lookahead-grid-container" class="schedule-scroll overflow-x-auto max-h-[68vh]"></div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- TAB 2: MCGOUGH TRADE APPROVAL QUEUE                                 -->
+    <!-- =================================================================== -->
+    <section id="view-approvals" class="hidden flex-col gap-4">
+      <!-- Approver Governance Control Bar -->
+      <div class="bg-slate-100 p-4 rounded-xl border border-slate-300 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          </div>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h2 class="text-sm sm:text-base font-bold text-slate-900">McGough Approval Gatekeeper</h2>
+              <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">Official WWP Protected</span>
+            </div>
+            <p class="text-xs text-slate-500">Trade submissions stay isolated in staging until approved by specified McGough personnel below.</p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200">
+            <label for="active-approver-select" class="text-xs font-semibold text-slate-600 whitespace-nowrap">Acting Approver:</label>
+            <select id="active-approver-select" onchange="setActiveApprover(this.value)" class="text-xs font-bold text-slate-900 bg-transparent focus:outline-none"></select>
+          </div>
+          <button type="button" onclick="openApproversModal()" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-xs font-semibold text-slate-700 transition">
+            Edit Approver Roster
+          </button>
+          <button type="button" onclick="approveAllVisibleSubmissions()" class="px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold transition shadow-sm">
+            Approve All Pending
+          </button>
+        </div>
+      </div>
+
+      <!-- Weekly Trade Check-In Readiness Bar -->
+      <div class="bg-slate-100 p-3.5 rounded-xl border border-slate-300 shadow-sm">
+        <div class="flex items-center justify-between gap-2 mb-2">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Weekly Trade Submission Status (Active Week 11 Contractors)</h3>
+          <button type="button" onclick="openShareLinkModal()" class="text-xs font-semibold text-red-700 hover:text-red-800">View Scoped Contractor PINs &rarr;</button>
+        </div>
+        <div id="submission-tracker-strip" class="flex flex-wrap gap-1.5"></div>
+      </div>
+
+      <!-- Trade Crew Work Schedules, Weekend Availability & Holiday Off-Site Matrix -->
+      <div class="bg-slate-100 p-3.5 rounded-xl border border-slate-300 shadow-sm">
+        <div class="flex items-center justify-between gap-2 mb-2">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600">Submitted Trade Work Schedules, Weekend Shifts &amp; Holiday Off-Site Dates</h3>
+          <span class="text-[11px] text-slate-500">Off-site dates also flag OFF directly on WWP Gantt rows</span>
+        </div>
+        <div id="mc-trade-schedules-summary"></div>
+      </div>
+
+      <!-- Filter Bar for Queue -->
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <select id="queue-filter-org" onchange="renderApprovalsView()" aria-label="Filter Submissions by Organization" class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-medium bg-white text-slate-700">
+            <option value="ALL">All Submitting Trades</option>
+          </select>
+          <select id="queue-filter-type" onchange="renderApprovalsView()" aria-label="Filter Submissions by Update Type" class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-medium bg-white text-slate-700">
+            <option value="ALL">All Submission Types</option>
+            <option value="TASK_UPDATE">Schedule / Progress Updates</option>
+            <option value="NEW_TASK">New Proposed Tasks</option>
+          </select>
+        </div>
+        <button type="button" onclick="clearDemoSubmissions()" class="text-xs font-medium text-slate-500 hover:text-slate-800 underline">
+          Clear Demo Staging Items
+        </button>
+      </div>
+
+      <!-- Pending Diff Cards List -->
+      <div id="approval-queue-container" class="flex flex-col gap-3"></div>
+
+      <!-- Approval & Rejection Audit Log -->
+      <div class="bg-slate-100 rounded-xl border border-slate-300 shadow-sm p-4 mt-2">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">McGough Approval &amp; Merge History (Session Audit Trail)</h3>
+        <div id="audit-log-container"></div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- TAB 3: ROADBLOCKS & PREREQUISITES (OUTBUILD MAKE-READY BOARD)       -->
+    <!-- =================================================================== -->
+    <section id="view-roadblocks" class="hidden flex-col gap-4">
+      <div class="bg-slate-100 p-4 rounded-xl border border-slate-300 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-sm sm:text-base font-bold text-slate-900">Make-Ready Roadblocks &amp; Trade Prerequisites</h2>
+          <p class="text-xs text-slate-500">Track predecessor handoffs, core drills, equipment deliveries, and area turnovers before committing work to the weekly plan.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <select id="rb-filter-status" onchange="renderRoadblocksView()" aria-label="Filter Roadblocks by Status" class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-medium bg-white text-slate-700">
+            <option value="ALL">All Statuses</option>
+            <option value="OPEN">Open Blockers</option>
+            <option value="COORDINATED">Coordinated / In Progress</option>
+            <option value="CLEARED">Cleared (Install-Ready)</option>
+          </select>
+          <select id="rb-filter-area" onchange="renderRoadblocksView()" aria-label="Filter Roadblocks by Area" class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-medium bg-white text-slate-700">
+            <option value="ALL">All Areas</option>
+          </select>
+          <button type="button" onclick="openAddRoadblockModal()" class="px-3 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-600 text-white text-xs font-semibold transition flex items-center gap-1.5">
+            <span>+ Flag Roadblock</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="roadblocks-board-container" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- TAB 4: PPC ANALYTICS & 27 CONTRACTORS DIRECTORY (JOBDATA)           -->
+    <!-- =================================================================== -->
+    <section id="view-analytics" class="hidden flex-col gap-4">
+      <!-- KPI Row -->
+      <div id="analytics-kpi-container" class="grid grid-cols-2 lg:grid-cols-4 gap-3"></div>
+
+      <!-- Charts Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="bg-slate-100 p-4 rounded-xl border border-slate-300 shadow-sm">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Assignments by Project Area</h3>
+          <div class="relative h-64">
+            <canvas id="chart-area-tasks"></canvas>
+          </div>
+        </div>
+        <div class="bg-slate-100 p-4 rounded-xl border border-slate-300 shadow-sm">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Top Active Trade Workload (Lookahead)</h3>
+          <div class="relative h-64">
+            <canvas id="chart-trade-workload"></canvas>
+          </div>
+        </div>
+        <div class="bg-slate-100 p-4 rounded-xl border border-slate-300 shadow-sm">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Constraints &amp; Variance Categories</h3>
+          <div class="relative h-64">
+            <canvas id="chart-variance-reasons"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive Weekly PPC Closeout Quick-Check -->
+      <div class="bg-slate-100 p-4 rounded-xl border border-slate-300 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Weekly PPC Closeout Scorecard ("Has task been completed as planned?")</h3>
+            <p class="text-xs text-slate-500">Toggle YES or NO (with Variance Category) on current-week commitments to automatically calculate Percent Plan Complete.</p>
+          </div>
+        </div>
+        <div id="ppc-eval-list" class="divide-y divide-slate-100 max-h-72 overflow-y-auto"></div>
+      </div>
+
+      <!-- Full 27 Contractors Directory (JOBDATA) -->
+      <div class="bg-slate-100 p-4 rounded-xl border border-slate-300 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Project Contractors Directory (JOBDATA Organizations)</h3>
+            <p class="text-xs text-slate-500">All 27 registered contractors with unique portal submission links and trade color badges.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="text" id="contractor-search" oninput="renderContractorsRoster()" placeholder="Filter contractors..." class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs" />
+            <button type="button" onclick="openAddContractorModal()" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition">+ Add Contractor</button>
+          </div>
+        </div>
+        <div id="contractors-roster-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5"></div>
+      </div>
+    </section>
+
+  
+    <!-- =================================================================== -->
+    <!-- TAB 5: WWP CHANGE LOG & WEEKLY BASELINE TRACKER                     -->
+    <!-- =================================================================== -->
+    <section id="view-changelog" class="hidden flex-col gap-4">
+      <div id="changelog-baseline-banner"></div>
+
+      <div class="bg-slate-100 p-4 rounded-xl border border-slate-300 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-sm sm:text-base font-bold text-slate-900">WWP Change Log (Submissions, Approvals &amp; Live McGough Edits)</h2>
+          <p class="text-xs text-slate-500">Complete audit history of who submitted, who approved, live huddle row insertions, Gantt bar shifts, and post-freeze changes.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 text-xs">
+          <input id="cl-filter-search" type="text" oninput="renderChangeLogView()" placeholder="Search actor, trade, task..." class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white w-56" />
+          <select id="cl-filter-cat" onchange="renderChangeLogView()" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-semibold text-slate-700">
+            <option value="ALL">All Change Events</option>
+            <option value="POST_FREEZE">Post-Freeze Changes Only</option>
+            <option value="TRADE_SUBMITTED">Trade WWP Submissions</option>
+            <option value="MCGOUGH_APPROVED">McGough Approvals</option>
+            <option value="MCGOUGH_RETURNED">McGough Returns</option>
+            <option value="LIVE_ROW_INSERT">Live Excel Row Inserts</option>
+            <option value="LIVE_MCGOUGH_EDIT">Live McGough Edits</option>
+            <option value="TRADE_SCHEDULE">Trade Holiday / Weekend Updates</option>
+          </select>
+          <button type="button" onclick="exportChangeLogCsv()" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-semibold">Export Log (.csv)</button>
+        </div>
+      </div>
+
+      <div id="changelog-list-container"></div>
+    </section>
+  
+    <!-- =================================================================== -->
+    <!-- TAB 6: P6 MASTER SCHEDULE & WEEKLY % TRACKER (WITH HISTORY LOG)     -->
+    <!-- =================================================================== -->
+    <section id="view-p6" class="hidden flex-col gap-4">
+      <!-- Drag-and-Drop P6 File Importer + Archive Weekly % Tracker Bar -->
+      <div class="bg-slate-100 p-4 rounded-xl border border-slate-300 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-sm sm:text-base font-bold text-slate-900">Primavera P6 Master Schedule &amp; Weekly % Tracker</h2>
+          <p class="text-xs text-slate-600">Upload your latest P6 export (.xlsx or .csv) to auto-refresh Trade task dropdowns, WWP P6 overlay bars, and archive previous weeks' % Tracker submissions.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 text-xs">
+          <button type="button" onclick="downloadSampleP6TemplateCsv()" class="px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 font-semibold text-slate-800">Export / Template (.csv)</button>
+          <button type="button" onclick="submitAndLogWeeklyPercentTracker()" class="px-3.5 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-bold shadow-sm">Submit &amp; Archive Weekly % Tracker</button>
+        </div>
+      </div>
+
+      <!-- Dropzone -->
+      <div id="p6-dropzone" ondragover="event.preventDefault(); this.classList.add('border-emerald-500');" ondragleave="this.classList.remove('border-emerald-500');" ondrop="handleP6DropEvent(event)" class="p-4 rounded-xl border-2 border-dashed border-slate-400 bg-white flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div>
+          <strong class="text-slate-900">Drag &amp; Drop Updated P6 Schedule Export (.xlsx or .csv) Here</strong>
+          <div class="text-slate-500 mt-0.5">Automatically maps Activity ID, Activity Name, Trade/Resource, Area, WBS, BL Start, BL Finish, and % Complete while archiving your prior % Tracker week.</div>
+        </div>
+        <div>
+          <label for="p6-file-input" class="px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-semibold cursor-pointer inline-block">Select P6 File (.xlsx / .csv)</label>
+          <input id="p6-file-input" type="file" accept=".csv,.tsv,.xlsx,.xls" onchange="handleP6FileUpload(event)" class="hidden" />
+        </div>
+      </div>
+
+      <div id="p6-kpi-strip" class="grid grid-cols-2 lg:grid-cols-4 gap-3"></div>
+
+      <!-- Historical Week Switcher & Filters -->
+      <div class="bg-slate-100 p-3 rounded-xl border border-slate-300 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div class="flex flex-wrap items-center gap-2">
+          <label for="p6-history-select" class="font-bold text-slate-700">% Tracker Edition:</label>
+          <select id="p6-history-select" onchange="renderMcGoughP6View()" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-bold text-slate-900"></select>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <select id="p6-filter-org" onchange="renderMcGoughP6View()" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-semibold"><option value="ALL">All P6 Contractors</option></select>
+          <input id="p6-filter-search" type="text" oninput="renderMcGoughP6View()" placeholder="Search P6 ID, scope, area..." class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white w-56" />
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-slate-300 shadow-sm overflow-x-auto">
+        <table class="w-full border-collapse text-left text-xs">
+          <thead class="bg-slate-900 text-white">
+            <tr>
+              <th class="px-3 py-2.5 font-semibold border-r border-slate-700">P6 ID</th>
+              <th class="px-2.5 py-2.5 font-semibold border-r border-slate-700">Area</th>
+              <th class="px-2.5 py-2.5 font-semibold border-r border-slate-700">Trade</th>
+              <th class="px-3 py-2.5 font-semibold border-r border-slate-700">P6 Activity Description</th>
+              <th class="px-2.5 py-2.5 font-semibold border-r border-slate-700">P6 Dates</th>
+              <th class="px-2.5 py-2.5 font-semibold border-r border-slate-700">WWP vs. P6</th>
+              <th class="px-2.5 py-2.5 text-center font-semibold border-r border-slate-700">Prior %</th>
+              <th class="px-3 py-2.5 font-semibold border-r border-slate-700">Current % Tracker</th>
+              <th class="px-2 py-2.5 text-center font-semibold">Gain</th>
+            </tr>
+          </thead>
+          <tbody id="p6-tracker-tbody" class="divide-y divide-slate-200"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- TAB 7: PRIVATE TRADE POTENTIAL CHANGE ORDERS (MCGOUGH ONLY)         -->
+    <!-- =================================================================== -->
+    <section id="view-pcos" class="hidden flex-col gap-4">
+      <div class="bg-slate-100 p-4 rounded-xl border border-slate-300 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-sm sm:text-base font-bold text-slate-900">Trade Potential Change Orders (Strictly Hidden From Applied Digital)</h2>
+          <p class="text-xs text-slate-600">Review subcontractor PCOs, verify Cost-Only vs. P6 Schedule-Impact tags, post McGough comments, or forward selected summaries to Applied Digital.</p>
+        </div>
+      </div>
+      <div id="mc-pco-kpi-strip" class="grid grid-cols-2 lg:grid-cols-4 gap-3"></div>
+      <div id="mc-pco-cards-container" class="flex flex-col gap-3.5"></div>
+    </section>
+  </main>
+<main id="mop-workspace" class="hidden flex-1 max-w-[1550px] w-full mx-auto px-3 sm:px-5 py-4 flex flex-col gap-4">
+    <!-- Top MOP Governance Banner -->
+    <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-4 sm:p-5 rounded-2xl shadow-md border border-slate-700 flex flex-col lg:flex-row lg:items-center justify-between gap-4 no-print">
+      <div class="flex items-start gap-3.5">
+        <div class="w-11 h-11 rounded-xl bg-indigo-500/20 border border-indigo-400/40 flex items-center justify-center text-indigo-300 shrink-0 mt-0.5">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-indigo-500/25 text-indigo-200 border border-indigo-400/30">Ellendale MOP Submittal System</span>
+            <span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-amber-400/20 text-amber-200 border border-amber-400/30">Dual Gate: McGough + Applied Digital Fac Ops</span>
+          </div>
+          <h2 class="text-base sm:text-lg font-bold mt-1">Method of Procedure (MOP) Drafts, Submissions &amp; Sign-Offs</h2>
+          <p class="text-xs text-slate-300 mt-0.5">No work shall begin until the MOP has been submitted by the Trade Rep and digitally approved by <strong>BOTH McGough</strong> and <strong>Applied Digital Fac Ops</strong>.</p>
+        </div>
+      </div>
+
+      <!-- Sub-View Switcher Pills -->
+      <div class="flex flex-wrap items-center gap-2 shrink-0">
+        <button type="button" id="mop-tab-btn-form" onclick="switchMopSubTab('form')" class="px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-indigo-600 text-white shadow-sm">
+          <span>+ Fill Out / Submit MOP</span>
+        </button>
+        <button type="button" id="mop-tab-btn-queue" onclick="switchMopSubTab('queue')" class="px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white border border-white/15">
+          <span>MOP Approval Queue &amp; Log</span>
+          <span id="mop-queue-pill-count" class="px-2 py-0.2 rounded-full text-[11px] bg-amber-400 text-slate-950 font-bold">2</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- KPI Summary Strip -->
+    <div id="mop-kpi-strip" class="grid grid-cols-2 lg:grid-cols-4 gap-3 no-print"></div>
+
+    <!-- =================================================================== -->
+    <!-- MOP SUB-VIEW 1: TRADE MOP SUBMITTAL FORM (ELLENDALE MOP TEMPLATE)   -->
+    <!-- =================================================================== -->
+    <section id="mop-section-form" class="flex flex-col gap-4 no-print">
+      <div id="mop-mcgough-author-mode-bar" class="hidden"></div>
+      <div class="bg-slate-100 rounded-xl border border-slate-300 shadow-md overflow-hidden">
+        <!-- Form Header Bar -->
+        <div class="px-4 py-3 bg-slate-800 text-white flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 class="text-sm sm:text-base font-bold tracking-tight" id="mop-form-heading">ELLENDALE MOP SUBMITTAL - New Draft / Proposal</h3>
+            <p class="text-xs text-slate-300">Fill out all required project, hazard, escort, representative, and step-by-step fields below. Save as a Draft or submit for McGough &amp; Applied Digital Fac Ops approval.</p>
+          </div>
+          <button type="button" onclick="resetMopForm()" class="px-3 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold border border-slate-600">
+            Reset / Clear Form
+          </button>
+        </div>
+
+        <div class="p-4 sm:p-5 flex flex-col gap-5">
+          <input type="hidden" id="mop-edit-id" value="" />
+
+          <!-- Part 1: Project, Risk, Dates & Scope Metadata -->
+          <div>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 pb-2 mb-3 border-b border-slate-300">1. Project, Risk &amp; Schedule Window</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+              <div>
+                <label for="mop-project" class="block font-semibold text-slate-700 mb-1">Project *</label>
+                <input type="text" id="mop-project" value="Ellendale Data Center" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-medium text-slate-900" />
+              </div>
+              <div>
+                <label for="mop-discipline" class="block font-semibold text-slate-700 mb-1">MOP Discipline / Sheet Type *</label>
+                <select id="mop-discipline" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-semibold text-slate-900">
+                  <option value="Electrical MOP">Electrical MOP</option>
+                  <option value="Mechanical / Piping MOP">Mechanical / Piping MOP</option>
+                  <option value="Controls / BMS MOP">Controls / BMS MOP</option>
+                  <option value="Fire Protection MOP">Fire Protection MOP</option>
+                  <option value="Structural / Architectural MOP">Structural / Architectural MOP</option>
+                </select>
+              </div>
+              <div>
+                <label for="mop-org" class="block font-semibold text-slate-700 mb-1">Lead Submitting Contractor *</label>
+                <select id="mop-org" onchange="handleMopLeadOrgChange(this.value)" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-semibold text-slate-900"></select>
+              </div>
+              <div>
+                <label for="mop-risk" class="block font-semibold text-slate-700 mb-1">Degree of Risk (Low / Medium / High) *</label>
+                <select id="mop-risk" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-bold text-slate-900">
+                  <option value="Low">Low Risk</option>
+                  <option value="Medium" selected>Medium Risk</option>
+                  <option value="High">High Risk</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="mop-prop-date" class="block font-semibold text-slate-700 mb-1">Proposed Start Date *</label>
+                <input type="date" id="mop-prop-date" value="2026-11-23" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-900" />
+              </div>
+              <div>
+                <label for="mop-prop-time" class="block font-semibold text-slate-700 mb-1">Proposed Start Time *</label>
+                <input type="time" id="mop-prop-time" value="07:00" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-900" />
+              </div>
+              <div>
+                <label for="mop-duration" class="block font-semibold text-slate-700 mb-1">Estimated Duration (Day / Days) *</label>
+                <input type="text" id="mop-duration" placeholder="e.g., 1 Day (or 6 Hours)" value="1 Day" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-900" />
+              </div>
+              <div>
+                <label for="mop-area" class="block font-semibold text-slate-700 mb-1">Primary Project Area *</label>
+                <select id="mop-area" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-medium text-slate-900"></select>
+              </div>
+
+              <div class="sm:col-span-2 lg:col-span-4">
+                <label for="mop-work-desc" class="block font-semibold text-slate-700 mb-1">Work to be Completed (Short Description) *</label>
+                <input type="text" id="mop-work-desc" placeholder="e.g., Tie-in overhead RPP feeder conduit &amp; verify LOTO isolation on Panel RPP-3A" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-900" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Part 2: Rooms, Escorts, CoreWeave Escorts & System Dangers -->
+          <div>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 pb-2 mb-3 border-b border-slate-300">2. Work Areas, Escort Requirements &amp; Systems Affected</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+              <div>
+                <label for="mop-rooms" class="block font-semibold text-slate-700 mb-1">Work Area(s) / Specific Room Numbers *</label>
+                <input type="text" id="mop-rooms" placeholder="e.g., DH1 North Elec Room 104, Corridor B" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-900" />
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label for="mop-escort-req" class="block font-semibold text-slate-700 mb-1">Escorts Required?</label>
+                  <select id="mop-escort-req" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white font-semibold">
+                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="mop-escort-steps" class="block font-semibold text-slate-700 mb-1">Escort Step No. (?-?)</label>
+                  <input type="text" id="mop-escort-steps" placeholder="e.g., Steps 2-6" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white" />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label for="mop-cw-escort-req" class="block font-semibold text-slate-700 mb-1">CoreWeave Escort?</label>
+                  <select id="mop-cw-escort-req" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white font-semibold">
+                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="mop-cw-escort-steps" class="block font-semibold text-slate-700 mb-1">CoreWeave Steps (?-?)</label>
+                  <input type="text" id="mop-cw-escort-steps" placeholder="e.g., Steps 3-5" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white" />
+                </div>
+              </div>
+
+              <div class="sm:col-span-2 lg:col-span-3">
+                <label for="mop-affected-systems" class="block font-semibold text-slate-700 mb-1">Area(s) / System(s) Affected - Dangers / Repercussions *</label>
+                <textarea id="mop-affected-systems" rows="2" placeholder="Describe energized busways, chilled water loops, fire suppression zones, LOTO boundaries, or potential repercussions..." class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-900"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Part 3: Trade Representatives & Required Approver Sign-Off Preview -->
+          <div>
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-2 mb-3 border-b border-slate-300">
+              <div>
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700">3. Subcontractor Representatives &amp; Dual Approval Sign-Off Roster</h4>
+                <p class="text-[11px] text-slate-600">No changes shall be made without approval of Client Rep (Applied Digital Fac Ops) AND McGough personnel.</p>
+              </div>
+              <button type="button" onclick="addMopTradeRepRow()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold">
+                + Add Trade Rep Row
+              </button>
+            </div>
+
+            <div id="mop-trade-reps-container" class="flex flex-col gap-2"></div>
+
+            <!-- Read-only Preview of Gate 1 & Gate 2 Sign-Off Slots -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 mt-3 text-xs">
+              <div class="p-2.5 rounded-lg bg-slate-200/80 border border-slate-300 flex items-center justify-between">
+                <div>
+                  <span class="font-bold text-red-900">Gate 1 - McGough Representative:</span>
+                  <span class="text-slate-600 ml-1">Stamped digitally upon McGough review</span>
+                </div>
+                <span class="px-2 py-0.5 rounded bg-white text-slate-600 font-semibold text-[10px] border border-slate-300">Required</span>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-200/80 border border-slate-300 flex items-center justify-between">
+                <div>
+                  <span class="font-bold text-indigo-950">Gate 2 - Client Rep (Applied Digital Fac Ops):</span>
+                  <span class="text-slate-600 ml-1">Stamped digitally upon Fac Ops review</span>
+                </div>
+                <span class="px-2 py-0.5 rounded bg-white text-slate-600 font-semibold text-[10px] border border-slate-300">Required</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Part 4: Numbered Step-by-Step Procedure Table -->
+          <div>
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-2 mb-3 border-b border-slate-300">
+              <div>
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700">4. Step-by-Step Work Procedure Sequence</h4>
+                <p class="text-[11px] text-slate-600">List all steps in chronological order with Room Number and Responsible Subcontractor.</p>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button type="button" onclick="addMopStepRows(1)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold">+ Add Step</button>
+                <button type="button" onclick="addMopStepRows(5)" class="px-2.5 py-1 rounded-lg border border-slate-400 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold">+ Add 5 Steps</button>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto rounded-lg border border-slate-300 bg-white">
+              <table class="w-full border-collapse text-left text-xs">
+                <thead class="bg-slate-800 text-white">
+                  <tr>
+                    <th class="px-2.5 py-2 w-12 text-center font-semibold border-r border-slate-700">No.</th>
+                    <th class="px-3 py-2 font-semibold border-r border-slate-700">Detailed Description (Step-by-step process of work being performed) *</th>
+                    <th class="px-2.5 py-2 w-36 font-semibold border-r border-slate-700">Room Number</th>
+                    <th class="px-2.5 py-2 w-40 font-semibold border-r border-slate-700">Subcontractor</th>
+                    <th class="px-2 py-2 w-20 text-center font-semibold">Order</th>
+                  </tr>
+                </thead>
+                <tbody id="mop-steps-tbody" class="divide-y divide-slate-200"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Form Footer Actions: Save as Draft vs Submit for Dual Approval -->
+          <div class="pt-3 border-t border-slate-300 flex flex-wrap items-center justify-between gap-3">
+            <div class="text-xs text-slate-600">
+              Saving as a <strong>Draft</strong> lets your team keep editing before formal submittal. Submitting routes the MOP to <strong>McGough</strong> &amp; <strong>Applied Digital Fac Ops</strong>.
+            </div>
+            <div class="flex flex-wrap items-center gap-2.5">
+              <button type="button" onclick="saveMopEntry('DRAFT')" class="px-4 py-2.5 rounded-xl border-2 border-slate-400 bg-white hover:bg-slate-50 text-slate-800 text-xs sm:text-sm font-bold transition">
+                Save as Trade Draft
+              </button>
+              <button type="button" onclick="saveMopEntry('SUBMITTED')" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-bold transition shadow-sm">
+                Submit MOP for McGough &amp; Applied Digital Approval &rarr;
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- MOP SUB-VIEW 2: DUAL APPROVAL QUEUE (MCGOUGH + APPLIED DIGITAL)     -->
+    <!-- =================================================================== -->
+    <section id="mop-section-queue" class="flex flex-col gap-4">
+      <div class="bg-slate-100 p-3.5 rounded-xl border border-slate-300 shadow-sm flex flex-wrap items-center justify-between gap-2.5 no-print">
+        <div class="flex flex-wrap items-center gap-2">
+          <input type="text" id="mop-filter-search" oninput="renderMopQueue()" placeholder="Search MOP ID, description, room, contractor..." class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs w-64 max-w-full" />
+          <select id="mop-filter-status" onchange="renderMopQueue()" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700">
+            <option value="ALL">All MOP Stages</option>
+            <option value="DRAFT">Trade Drafts (Unsubmitted)</option>
+            <option value="NEEDS_MCGOUGH">Awaiting Gate 1: McGough Approval</option>
+            <option value="NEEDS_CLIENT">Awaiting Gate 2: Applied Digital Fac Ops</option>
+            <option value="FULLY_APPROVED">Fully Approved (Authorized for Work)</option>
+            <option value="RETURNED">Returned / Changes Requested</option>
+          </select>
+          <select id="mop-filter-risk" onchange="renderMopQueue()" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-medium text-slate-700">
+            <option value="ALL">All Risk Levels</option>
+            <option value="High">High Risk</option>
+            <option value="Medium">Medium Risk</option>
+            <option value="Low">Low Risk</option>
+          </select>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button type="button" id="mop-manage-approvers-btn" onclick="openApproversModal()" class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700">
+            Manage McGough &amp; Applied Digital Approvers
+          </button>
+        </div>
+      </div>
+
+      <div id="mop-cards-container" class="flex flex-col gap-3.5"></div>
+    </section>
+  </main>
+  <!-- Shared Dynamic Modal & Toast Containers -->
+  <div id="modal-backdrop" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-[2px] flex items-center justify-center p-3 sm:p-5 overflow-y-auto no-print" onclick="handleBackdropClick(event)">
+    <div id="modal-content" class="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl overflow-hidden my-auto"></div>
+  </div>
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none no-print"></div>
+
+  <script src="js/storage.js"></script>
+  <script src="js/shared.js"></script>
+  <script src="js/notifications.js"></script>
+  <script src="js/p6.js"></script>
+  <script src="js/pco.js"></script>
+  <script src="js/wwp.js"></script>
+  <script src="js/mop.js"></script>
+</body>
+</html>

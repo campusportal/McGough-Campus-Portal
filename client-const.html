@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Applied Digital Construction - MOP Tracker & Read-Only WWP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/firebase@12.6.0/firebase-app-compat.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/firebase@12.6.0/firebase-auth-compat.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/firebase@12.6.0/firebase-firestore-compat.js"></script>
+  <script>
+    window.MCGOUGH_MULTIPAGE = true;
+    window.MCGOUGH_PAGE_ID = 'client_const';
+  </script>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-red-100 selection:text-red-900">
+  <!-- Role-Isolated Top Portal Navigation Bar -->
+  <header id="portal-header" class="hidden bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-40 shadow-sm no-print">
+    <div class="max-w-[1600px] mx-auto px-3 sm:px-5 py-2.5 flex flex-wrap items-center justify-between gap-2.5">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-red-700 flex items-center justify-center font-bold text-lg tracking-tight border border-red-500/40 shrink-0">M</div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 id="header-portal-title" class="font-bold text-sm sm:text-base tracking-tight text-white">Ellendale Portal</h1>
+            <span id="header-scope-badge" class="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-amber-300 border border-slate-700">EL4T | Ellendale Campus - Building 4 - TFO</span>
+            <span id="planning-week-label" class="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">Planning Week 11</span>
+            <span id="header-cloud-sync-wrap"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Strictly Scoped Navigation Controls Rendered Per Role -->
+      <div id="role-center-nav" class="flex flex-wrap items-center bg-slate-800/90 p-1 rounded-lg border border-slate-700 gap-1"></div>
+
+      <!-- Right Controls: McGough-Only Admin Tools + Active Session Badge + Sign Out -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <div id="mcgough-scope-switcher-wrap" class="hidden">
+          <select id="mcgough-header-scope-select" onchange="handleMcGoughHeaderScopeSwitch(this.value)" aria-label="Switch Project Scope" class="px-2.5 py-1.5 rounded-lg bg-slate-800 text-amber-200 border border-slate-700 text-xs font-semibold"></select>
+        </div>
+
+        <div id="mcgough-admin-actions" class="hidden flex items-center gap-1.5 flex-wrap">
+          <button type="button" onclick="openNotificationsModal()" class="px-2.5 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold transition flex items-center gap-1 shadow-sm"><span>Pings &amp; Reminders</span><span id="notif-outbox-pill" class="px-1.5 py-0.2 rounded-full bg-slate-900 text-white text-[10px]">0</span></button>
+          <button type="button" onclick="openShareLinkModal()" class="px-2.5 py-1.5 rounded-lg bg-red-700 hover:bg-red-600 text-white text-xs font-semibold transition border border-red-500/30">PINs &amp; Links</button>
+          <button type="button" onclick="openApproversModal()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition border border-slate-700">
+            <span id="active-approver-pill">Campuses &amp; Approvers</span>
+          </button>
+          <button type="button" onclick="openExportDataModal()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition border border-slate-700">Export / Import</button>
+          <input type="file" id="json-import-input" accept=".json" class="hidden" onchange="handleJsonFileImport(event)" />
+        </div>
+
+        <span id="active-session-role-pill" class="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 text-xs font-semibold"></span>
+        <button type="button" onclick="signOutPortalSession()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-800 text-slate-200 hover:text-white text-xs font-semibold transition border border-slate-700">Sign Out</button>
+      </div>
+    </div>
+  </header>
+
+<main id="mop-workspace" class="hidden flex-1 max-w-[1550px] w-full mx-auto px-3 sm:px-5 py-4 flex flex-col gap-4">
+    <!-- Top MOP Governance Banner -->
+    <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-4 sm:p-5 rounded-2xl shadow-md border border-slate-700 flex flex-col lg:flex-row lg:items-center justify-between gap-4 no-print">
+      <div class="flex items-start gap-3.5">
+        <div class="w-11 h-11 rounded-xl bg-indigo-500/20 border border-indigo-400/40 flex items-center justify-center text-indigo-300 shrink-0 mt-0.5">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-indigo-500/25 text-indigo-200 border border-indigo-400/30">Ellendale MOP Submittal System</span>
+            <span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-amber-400/20 text-amber-200 border border-amber-400/30">Dual Gate: McGough + Applied Digital Fac Ops</span>
+          </div>
+          <h2 class="text-base sm:text-lg font-bold mt-1">Method of Procedure (MOP) Drafts, Submissions &amp; Sign-Offs</h2>
+          <p class="text-xs text-slate-300 mt-0.5">No work shall begin until the MOP has been submitted by the Trade Rep and digitally approved by <strong>BOTH McGough</strong> and <strong>Applied Digital Fac Ops</strong>.</p>
+        </div>
+      </div>
+
+      <!-- Sub-View Switcher Pills -->
+      <div class="flex flex-wrap items-center gap-2 shrink-0">
+        <button type="button" id="mop-tab-btn-form" onclick="switchMopSubTab('form')" class="px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-indigo-600 text-white shadow-sm">
+          <span>+ Fill Out / Submit MOP</span>
+        </button>
+        <button type="button" id="mop-tab-btn-queue" onclick="switchMopSubTab('queue')" class="px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white border border-white/15">
+          <span>MOP Approval Queue &amp; Log</span>
+          <span id="mop-queue-pill-count" class="px-2 py-0.2 rounded-full text-[11px] bg-amber-400 text-slate-950 font-bold">2</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- KPI Summary Strip -->
+    <div id="mop-kpi-strip" class="grid grid-cols-2 lg:grid-cols-4 gap-3 no-print"></div>
+
+    <!-- MOP SUB-VIEW 2: DUAL APPROVAL QUEUE (MCGOUGH + APPLIED DIGITAL)     -->
+    <!-- =================================================================== -->
+    <section id="mop-section-queue" class="flex flex-col gap-4">
+      <div class="bg-slate-100 p-3.5 rounded-xl border border-slate-300 shadow-sm flex flex-wrap items-center justify-between gap-2.5 no-print">
+        <div class="flex flex-wrap items-center gap-2">
+          <input type="text" id="mop-filter-search" oninput="renderMopQueue()" placeholder="Search MOP ID, description, room, contractor..." class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs w-64 max-w-full" />
+          <select id="mop-filter-status" onchange="renderMopQueue()" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700">
+            <option value="ALL">All MOP Stages</option>
+            <option value="DRAFT">Trade Drafts (Unsubmitted)</option>
+            <option value="NEEDS_MCGOUGH">Awaiting Gate 1: McGough Approval</option>
+            <option value="NEEDS_CLIENT">Awaiting Gate 2: Applied Digital Fac Ops</option>
+            <option value="FULLY_APPROVED">Fully Approved (Authorized for Work)</option>
+            <option value="RETURNED">Returned / Changes Requested</option>
+          </select>
+          <select id="mop-filter-risk" onchange="renderMopQueue()" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-medium text-slate-700">
+            <option value="ALL">All Risk Levels</option>
+            <option value="High">High Risk</option>
+            <option value="Medium">Medium Risk</option>
+            <option value="Low">Low Risk</option>
+          </select>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button type="button" id="mop-manage-approvers-btn" onclick="openApproversModal()" class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700">
+            Manage McGough &amp; Applied Digital Approvers
+          </button>
+        </div>
+      </div>
+
+      <div id="mop-cards-container" class="flex flex-col gap-3.5"></div>
+    </section>
+  </main>
+<main id="gc-workspace" class="hidden flex-1 max-w-[1600px] w-full mx-auto px-3 sm:px-5 py-4 flex flex-col gap-4">
+
+    <!-- 11x17 Print Title Block (Visible only in Print) & Fullscreen WWP Meeting Mode Bar -->
+    <div id="wwp-print-title-block" class="only-print"></div>
+    <div id="meeting-mode-bar" class="hidden"></div>
+
+    <!-- TAB 1: OFFICIAL LOOKAHEAD & WWP                                     -->
+    <!-- =================================================================== -->
+    <section id="view-lookahead" class="flex flex-col gap-3.5">
+      <!-- KPI Summary Strip -->
+      <div id="lookahead-kpi-strip" class="grid grid-cols-2 md:grid-cols-5 gap-2.5 no-print"></div>
+
+      <!-- Toolbar: Rolling Date Controls (Auto-Anchored!) + Filters + Add Task -->
+      <div class="bg-slate-100 p-3.5 rounded-xl border border-slate-300 shadow-sm flex flex-col gap-3 no-print">
+        <div class="flex flex-wrap items-center justify-between gap-2.5">
+          <!-- Rolling Calendar Window Nav -->
+          <div class="flex flex-wrap items-center gap-1.5">
+            <div class="inline-flex items-center rounded-lg border border-slate-300 bg-slate-50 p-0.5">
+              <button type="button" onclick="shiftLookaheadDays(-7)" class="px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-white rounded-md transition" title="Roll window back 1 week">&larr; Prev Wk</button>
+              <button type="button" onclick="resetLookaheadToday()" class="px-2.5 py-1 text-xs font-semibold text-red-700 hover:bg-white rounded-md transition border-x border-slate-200/80">11/18 (Wk 11)</button>
+              <button type="button" onclick="shiftLookaheadDays(7)" class="px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-white rounded-md transition" title="Advance 1 week - tasks stay locked to real calendar dates!">Next Wk &rarr;</button>
+            </div>
+
+            <div class="flex items-center gap-1.5 text-xs text-slate-600 ml-1">
+              <label for="lookahead-start-input" class="font-medium hidden sm:inline">Window Start:</label>
+              <input type="date" id="lookahead-start-input" value="2026-11-18" onchange="setLookaheadStartDate(this.value)" class="px-2 py-1 rounded-lg border border-slate-300 text-xs font-medium text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-red-600/20 focus:border-red-600" />
+            </div>
+
+            <select id="horizon-select" onchange="setHorizonWeeks(this.value)" aria-label="Lookahead Horizon" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 bg-white">
+              <option value="7">1-Week WWP (7 Days)</option>
+              <option value="16" selected>3-Week Sheet Horizon (16 Days: 11/18-12/03)</option>
+              <option value="21">Full 3-Week Lookahead (21 Days)</option>
+              <option value="28">4-Week Lookahead (28 Days)</option>
+            </select>
+
+            <select id="display-mode-select" onchange="setDisplayMode(this.value)" aria-label="Timeline Cell Mode" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs font-medium text-slate-700 bg-white">
+              <option value="hybrid" selected>Outbuild Bars + Huddle Codes (S / x / C)</option>
+              <option value="bars">Clean Gantt Bars Only</option>
+              <option value="codes">Field Huddle Markup Grid (S / x / C / %)</option>
+            </select>
+          </div>
+
+          <!-- Primary Add Official Task, Hide Early Controls & Expand -->
+          <div id="gc-edit-toolbar-actions" class="flex flex-wrap items-center gap-2">
+            <button type="button" id="toggle-p6-overlay-btn" onclick="toggleP6Overlay()" class="px-2.5 py-1.5 rounded-lg border border-emerald-500 bg-emerald-700 text-white text-xs font-bold transition shadow-sm" title="Overlay Primavera P6 Master Schedule dates directly beneath WWP bars">P6 Overlay: ON</button>
+            <button type="button" id="toggle-hidden-tasks-btn" onclick="toggleShowHiddenTasks()" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-slate-200/80 hover:bg-slate-200 text-xs font-semibold text-slate-800 transition flex items-center gap-1.5" title="Show or hide tasks tucked away after early completion">
+              <span id="hidden-tasks-btn-label">Hidden Early (0)</span>
+            </button>
+            <button type="button" onclick="hideAllCompletedTasks()" class="px-2.5 py-1.5 rounded-lg border border-emerald-300 bg-emerald-100/80 hover:bg-emerald-200/80 text-xs font-semibold text-emerald-900 transition" title="Hide all 100% completed tasks from active board">
+              Hide 100% Done
+            </button>
+            <button type="button" onclick="expandCollapseAllAreas()" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white/80 hover:bg-white text-xs font-medium text-slate-700 transition">
+              Expand / Collapse Areas
+            </button>
+            <button type="button" onclick="freezeWeeklyBaseline()" class="px-2.5 py-1.5 rounded-lg border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-xs font-bold text-indigo-950 transition" title="Snapshot weekly commitments right before printing 11x17 WWP">Freeze Baseline</button>
+            <button type="button" onclick="printTabloidWwp()" class="px-2.5 py-1.5 rounded-lg border border-slate-400 bg-white hover:bg-slate-100 text-xs font-bold text-slate-900 transition" title="Print Official WWP formatted for 11x17 Tabloid Landscape">Print 11x17 WWP</button>
+            <button type="button" onclick="toggleWwpMeetingMode(true)" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-sm" title="Launch chrome-free interactive Presentation Mode for WWP meetings">WWP Meeting Mode</button>
+            <button type="button" onclick="openTaskModal(null)" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+              <span>Add Official Task</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Row -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-2 border-t border-slate-100">
+          <div class="relative">
+            <input type="text" id="filter-search" oninput="applyLookaheadFilters()" placeholder="Search scope, foreman, WBS, prerequisite..." class="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-500" />
+            <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          </div>
+          <select id="filter-area" onchange="applyLookaheadFilters()" aria-label="Filter by Area" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-700 bg-white">
+            <option value="ALL">All Project Areas (Admin + Data Halls 1-6)</option>
+          </select>
+          <select id="filter-org" onchange="applyLookaheadFilters()" aria-label="Filter by Contractor" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-700 bg-white">
+            <option value="ALL">All Contractors (27 Organizations)</option>
+          </select>
+          <select id="filter-status" onchange="applyLookaheadFilters()" aria-label="Filter by Status" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-700 bg-white">
+            <option value="ALL">All Task Statuses</option>
+            <option value="PENDING_SUBMISSION">Has Pending Trade Update (Unapproved)</option>
+            <option value="HAS_PREREQ">Has Open Roadblock / Prerequisite</option>
+            <option value="IN_WINDOW">Active in Visible Date Window</option>
+            <option value="COMPLETED">Completed (100% or C)</option>
+          </select>
+        </div>
+
+        <!-- Legend & Zero-Shift Hint -->
+        <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 pt-1">
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="font-semibold text-slate-700">Huddle Markup Key:</span>
+            <span class="inline-flex items-center gap-1"><kbd class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">S</kbd> Start</span>
+            <span class="inline-flex items-center gap-1"><kbd class="px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 font-bold text-[10px]">x</kbd> Active Work</span>
+            <span class="inline-flex items-center gap-1"><kbd class="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 font-bold text-[10px]">C</kbd> Complete</span>
+            <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span> Pending Trade Proposal (Locked until approved)</span>
+            <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span> Open Prerequisite</span>
+          </div>
+          <span id="gc-huddle-controls-hint" class="text-slate-700 font-medium">Live Controls: Drag bar or click -1d/+1d (opens verification prompt) | Click Undo on any modified row | Click cell for S/x/C.</span>
+        </div>
+      </div>
+
+      <!-- Main Official Lookahead Schedule Grid -->
+      <div class="bg-slate-100 rounded-xl border border-slate-300 shadow-md overflow-hidden">
+        <div id="lookahead-grid-container" class="schedule-scroll overflow-x-auto max-h-[68vh]"></div>
+      </div>
+    </section>
+
+    </main>
+  <!-- Shared Dynamic Modal & Toast Containers -->
+  <div id="modal-backdrop" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-[2px] flex items-center justify-center p-3 sm:p-5 overflow-y-auto no-print" onclick="handleBackdropClick(event)">
+    <div id="modal-content" class="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl overflow-hidden my-auto"></div>
+  </div>
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none no-print"></div>
+
+  <script src="js/storage.js"></script>
+  <script src="js/shared.js"></script>
+  <script src="js/notifications.js"></script>
+  <script src="js/p6.js"></script>
+  <script src="js/wwp.js"></script>
+  <script src="js/mop.js"></script>
+</body>
+</html>
