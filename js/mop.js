@@ -377,7 +377,7 @@ function resetMopForm() {
   editEl.value = '';
   mopFormDraftState.isPostApprovalRevision = false;
   mopFormDraftState.authorMode = state.authRole === 'mcgough' ? 'MCGOUGH_MULTITRADE' : 'TRADE';
-  document.getElementById('mop-form-heading').textContent = 'ELLENDALE MOP SUBMITTAL - New Draft / Proposal';
+  document.getElementById('mop-form-heading').textContent = 'MOP SUBMITTAL - New Draft / Proposal';
   document.getElementById('mop-work-desc').value = '';
   document.getElementById('mop-rooms').value = '';
   document.getElementById('mop-escort-req').value = 'No';
@@ -887,7 +887,7 @@ function openOfficialMopSheetModal(mopId) {
     '<div class="p-5 max-h-[88vh] overflow-y-auto text-xs text-slate-900 bg-white">' +
       '<div class="flex items-center justify-between pb-3 mb-3 border-b-2 border-slate-900">' +
         '<div>' +
-          '<div class="text-base font-bold tracking-tight">ELLENDALE MOP SUBMITTAL - ' + escapeHtml(m.mopId) + ' (Rev ' + (m.revision || 1) + ')</div>' +
+          '<div class="text-base font-bold tracking-tight">MOP SUBMITTAL - ' + escapeHtml(m.mopId) + ' (Rev ' + (m.revision || 1) + ')</div>' +
           '<div class="text-[11px] text-slate-600">' + escapeHtml(m.project) + ' | ' + escapeHtml(m.discipline) + ' | Origin: ' + escapeHtml(m.authorRole || 'TRADE') + ' | Status: <strong>' + escapeHtml(m.workflowStatus) + '</strong></div>' +
         '</div>' +
         '<div class="flex items-center gap-2 no-print">' +
@@ -934,6 +934,7 @@ function renderMopQueue() {
     if (stFilter === 'NEEDS_CLIENT' && !(m.workflowStatus === 'SUBMITTED' && m.mcgoughApproval.status === 'APPROVED' && areAllTradeSignOffsComplete(m) && m.clientApproval.status !== 'APPROVED')) return false;
     if (stFilter === 'FULLY_APPROVED' && m.workflowStatus !== 'FULLY_APPROVED') return false;
     if (stFilter === 'RETURNED' && m.workflowStatus !== 'RETURNED') return false;
+    if (stFilter === 'AD_CONST_VIEWED' && !(Array.isArray(m.constructionViews) && m.constructionViews.length > 0)) return false;
     if (q) {
       const hay = [m.mopId, m.discipline, m.org, m.area, m.workDescription, m.workAreasRooms, m.affectedSystems].join(' ').toLowerCase();
       if (hay.indexOf(q) === -1) return false;
@@ -1028,7 +1029,7 @@ function renderMopQueue() {
         concernsCallout +
         tradeSignOffHtml +
 
-        '<div class="grid grid-cols-1 md:grid-cols-3 gap-2.5">' +
+        '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">' +
           '<div class="p-2.5 rounded-lg border border-slate-300 bg-white">' +
             '<div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">1. Involved Trade Rep(s)</div>' +
             '<div class="font-bold text-slate-900 mt-0.5">' + escapeHtml(m.tradeReps.map(function(r) { return r.name + ' (' + r.company + ')'; }).join(', ')) + '</div>' +
@@ -1044,13 +1045,22 @@ function renderMopQueue() {
             '<div class="font-bold mt-0.5">' + escapeHtml(m.clientApproval.approverName || 'Awaiting Applied Digital Fac Ops') + '</div>' +
             (m.clientApproval.note ? '<div class="text-[11px] italic mt-0.5">"' + escapeHtml(m.clientApproval.note) + '"</div>' : '') +
           '</div>' +
+          '<div class="p-2.5 rounded-lg border ' + (views.length > 0 ? 'bg-sky-100 border-sky-400 text-sky-950' : 'bg-white border-slate-300 text-slate-500') + '">' +
+            '<div class="flex items-center justify-between"><span class="text-[10px] font-bold uppercase tracking-wider">4. AD Construction</span><span class="px-1.5 py-0.5 rounded text-[10px] font-bold ' + (views.length > 0 ? 'bg-sky-700 text-white' : 'bg-slate-200 text-slate-600') + '">' + (views.length > 0 ? 'VIEWED' : 'NOT VIEWED') + '</span></div>' +
+            '<div class="font-bold mt-0.5">' + (views.length > 0 ? ('&#10003; ' + escapeHtml(views[views.length - 1].repName)) : 'Pending AD Construction View') + '</div>' +
+            '<div class="text-[11px] mt-0.5">' + (views.length > 0 ? escapeHtml('Clicked ' + views[views.length - 1].viewedAt + (views.length > 1 ? ' (+' + (views.length - 1) + ' more)' : '')) : 'Updates live when clicked') + '</div>' +
+          '</div>' +
         '</div>' +
       '</div>' +
 
       '<div class="px-4 py-2.5 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">' +
         '<div class="flex flex-wrap items-center gap-2">' +
           '<button type="button" onclick="openOfficialMopSheetModal(\'' + escapeHtml(m.mopId) + '\')" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 font-semibold text-slate-800">View / Print Official MOP Form</button>' +
-          (isAdConst ? '<button type="button" onclick="recordAdConstructionMopView(\'' + escapeHtml(m.mopId) + '\', true)" class="px-3 py-1.5 rounded-lg bg-sky-700 hover:bg-sky-600 text-white font-semibold">Log AD Construction Viewed</button>' : '') +
+          (isAdConst
+            ? '<button type="button" onclick="recordAdConstructionMopView(\'' + escapeHtml(m.mopId) + '\', true)" class="px-3 py-1.5 rounded-lg ' + (views.length > 0 ? 'bg-emerald-700 hover:bg-emerald-600' : 'bg-sky-700 hover:bg-sky-600') + ' text-white font-semibold">' + (views.length > 0 ? '&#10003; AD Construction Viewed (Update Timestamp)' : 'Log AD Construction Viewed') + '</button>'
+            : (views.length > 0
+                ? '<span class="px-3 py-1.5 rounded-lg bg-sky-100 border border-sky-400 text-sky-950 font-bold inline-flex items-center gap-1.5">&#10003; AD Construction Viewed: ' + escapeHtml(views[views.length - 1].repName + ' @ ' + views[views.length - 1].viewedAt) + '</span>'
+                : '<span class="px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-300 text-slate-500 font-medium inline-flex items-center gap-1.5">AD Construction: Not Viewed Yet</span>')) +
           (isMcGough ? '<button type="button" onclick="openDeleteMopModal(\'' + escapeHtml(m.mopId) + '\')" class="px-3 py-1.5 rounded-lg border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold">Delete MOP</button>' : '') +
           (isMcGough && m.workflowStatus === 'FULLY_APPROVED'
             ? '<button type="button" onclick="loadMopIntoEditor(\'' + escapeHtml(m.mopId) + '\', true)" class="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-sm">Edit as Rev ' + (revNum + 1) + ' (Re-Approve)</button>'

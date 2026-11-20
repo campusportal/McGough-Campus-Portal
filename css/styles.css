@@ -1,4 +1,4 @@
-/* Ellendale WWP-TFO-4 Multi-Campus Portal - Self-Contained Stylesheet (css/styles.css) */
+/* Multi-Campus Field Coordination Portal - Self-Contained Stylesheet (css/styles.css) */
 *, ::before, ::after {
   box-sizing: border-box;
   border-width: 0;
@@ -176,7 +176,6 @@ body {
 .border-red-200 { border-color: #fecaca; }
 .border-red-300 { border-color: #fca5a5; }
 .border-red-500\/30 { border-color: rgba(239, 68, 68, 0.3); }
-.border-red-500\/40 { border-color: rgba(239, 68, 68, 0.4); }
 .border-red-500\/50 { border-color: rgba(239, 68, 68, 0.5); }
 .border-red-500\/60 { border-color: rgba(239, 68, 68, 0.6); }
 .border-red-600 { border-color: #dc2626; }
@@ -395,6 +394,7 @@ body {
 .min-w-\[250px\] { min-width: 250px; }
 .min-w-\[60px\] { min-width: 60px; }
 .no-underline { text-decoration: none; }
+.object-contain { object-fit: contain; }
 .opacity-65 { opacity: 0.65; }
 .opacity-75 { opacity: 0.75; }
 .opacity-80 { opacity: 0.8; }
