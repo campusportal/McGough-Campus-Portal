@@ -7,12 +7,7 @@
 // Once projectId & apiKey are filled in below, every phone, tablet, and
 // laptop opening your GitHub Pages site connects to Cloud Firestore live!
 // =========================================================================
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-const firebaseConfig = {
+const DEFAULT_FIREBASE_CONFIG = {
   apiKey: "AIzaSyBOzWomptQ_WTxvuR6NxVZGYFAxJwAsHNA",
   authDomain: "prototype-construction-portal.firebaseapp.com",
   projectId: "prototype-construction-portal",
@@ -20,9 +15,6 @@ const firebaseConfig = {
   messagingSenderId: "740255904063",
   appId: "1:740255904063:web:ff602a84d87946fb0a238a"
 };
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
 
 const CAMPUS_REGISTRY_KEY = 'wwp_tfo4_campus_registry_v2';
 const ACTIVE_SESSION_KEY = 'wwp_tfo4_active_session_v2';
